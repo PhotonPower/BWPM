@@ -39,6 +39,7 @@ Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5.
 | E2 | Randbedingung quer (#1) | absorbierende Maske nach jedem Schritt; großes Fenster mit Nullrand als Testreferenz (2026-11-05) |
 | E3 | Rückwärtslauf: Zuordnung r, s und Lage der Felder (#2) | unabhängig über die Transfer-Matrix des diskretisierten Stapels herleiten, Tabelle 1 daran prüfen (2026-11-05) |
 | E4 | Brechzahlstufen aus einer Geometrie (#3) | Pixelmittelpunkt als Standard, Flächenanteil als Option für dielektrische Übergänge (2026-11-05) |
+| E5 | Grenzen aus B1/B2 (#8) | Gültigkeitsgrenze festhalten: Reflexe quantitativ nur an z-senkrechten Flächen, an gekippten Flächen nur Richtung, Fokuslage und Phase; gefangene Wellen konvergieren nicht. Gegenvergleich mit hp-FEM später, Abhilfe nur bei Bedarf (2026-11-05) |
 
 ## Risiken
 
@@ -47,7 +48,7 @@ Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5.
 - **Randbedingungen quer:** Die FFT ist periodisch; entschieden ist eine absorbierende Maske (E2).
   Restreflexion durch zu steile Masken misst B1.
 - **Leistung an gekippten Flächen (gemessen in B1/B2, K8, K9):** Transmission auf einige Prozent,
-  Reflexion an gekippten Flächen grob falsch und nicht konvergent. Abhilfe offen (Issue).
+  Reflexion an gekippten Flächen grob falsch und nicht konvergent; als Gültigkeitsgrenze festgehalten (E5).
 - **Geführte Wellen (K4):** Die Iteration konvergiert nicht für durch Totalreflexion gefangene
   Wellen.
 - **Wahl der Brechzahlstufen:** M wächst bei gekrümmten Flächen und Gradienten; der Aufwand geht mit
