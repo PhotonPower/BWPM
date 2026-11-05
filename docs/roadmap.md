@@ -29,7 +29,9 @@ Leitlinien:
 | **B4 Kern und Ports** | C++/CUDA-Kern, Python-Anbindung, Adapter nach dem Fusionsplan (Abschnitt 6.4), Konformitätstests (6.5) | Sollwertdateien aus B1–B3 bitgleich bzw. in Toleranz |
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
 
-Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5.
+Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
+vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
+Kern aus B4.
 
 ## Entscheidungen
 
@@ -40,6 +42,7 @@ Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5.
 | E3 | Rückwärtslauf: Zuordnung r, s und Lage der Felder (#2) | unabhängig über die Transfer-Matrix des diskretisierten Stapels herleiten, Tabelle 1 daran prüfen (2026-11-05) |
 | E4 | Brechzahlstufen aus einer Geometrie (#3) | Pixelmittelpunkt als Standard, Flächenanteil als Option für dielektrische Übergänge (2026-11-05) |
 | E5 | Grenzen aus B1/B2 (#8) | Gültigkeitsgrenze festhalten: Reflexe quantitativ nur an z-senkrechten Flächen, an gekippten Flächen nur Richtung, Fokuslage und Phase; gefangene Wellen konvergieren nicht. Gegenvergleich mit hp-FEM später, Abhilfe nur bei Bedarf (2026-11-05) |
+| E6 | Fusionspilot vor B3 | in 2D vorgezogen, mit `fieldtracing` als optionaler Abhängigkeit (Extra `fusion`, Commit festgelegt) (2026-11-05) |
 
 ## Risiken
 
