@@ -23,3 +23,4 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   Iterationen, Energieresiduum. K4: exakt gegen die Transfer-Matrix des diskretisierten Stapels
   (Tabelle 1 der Quelle bestätigt); K5 Parabolspiegel (Fokus 49,87 µm bei f′ = 50 µm); K9
   gekippter Spiegel (Richtung konvergiert, Leistung nicht – Grenze des Verfahrens).
+- Entscheidung E5: Gültigkeitsgrenzen aus B1/B2 (gekippte Flächen, gefangene Wellen).
