@@ -42,7 +42,10 @@ def objective_field(grid: Grid3D, distance: float) -> np.ndarray:  # type: ignor
     kz = np.sqrt(np.maximum(k * k - kp * kp, 0.0))
     cos_t = kz / k
     phi = np.arctan2(ky, kx)
-    amp = np.where(inside, cos_t ** (-0.5), 0.0) * np.exp(-1j * kz * distance)
+    # cos θ^(-1/2) only inside the NA (outside, cos θ can be 0 and the value is not used)
+    weight = np.zeros_like(cos_t)
+    weight[inside] = cos_t[inside] ** -0.5
+    amp = weight * np.exp(-1j * kz * distance)
     ex = amp * (np.cos(phi) ** 2 * cos_t + np.sin(phi) ** 2)
     ey = amp * np.cos(phi) * np.sin(phi) * (cos_t - 1.0)
     shift = np.exp(-1j * (kx * (grid.nx // 2) * grid.dx + ky * (grid.ny // 2) * grid.dy))
