@@ -50,9 +50,13 @@ Laufzeit je Konfiguration etwa 2–4 s.
 - Die Kappe verschiebt den Rückreflex um 82,4 µm aus der Zwischenbildebene und senkt die
   Rückreflexion an der Facette von 4,2 % auf 5,6·10⁻⁵ – das Ergebnis der Quelle wird in 2D
   bestätigt.
-- Das Strehl-Verhältnis ist in 2D höher als in der Quelle (0,997 statt 0,97): Ein Zylinderfokus
-  gewichtet die Randstrahlen schwächer als ein rotationssymmetrischer, und die sphärische
-  Aberration der Platte wirkt deshalb weniger. Ein Vergleich braucht 3D (B3).
+- Das Strehl-Verhältnis ist höher als in der Quelle (0,997 statt 0,97). **Korrektur:** Auch die
+  Quelle rechnet in 2D (wende2023 §2.1.2), der Unterschied ist also kein 2D/3D-Effekt; ein erster
+  kleiner 3D-Lauf (B3, grobes Gitter) ergibt 0,993. Wahrscheinlich unterscheiden sich die
+  Definitionen: Die Quelle vergleicht normierte Spitzenintensitäten der Fokusse mit und ohne
+  Kappe (Abb. 5(e)); darin stecken zusätzlich etwa 4 % Fresnel-Verlust an der Kappenoberfläche
+  und das Objektivmodell. Hier ist es das Verhältnis zum aberrationsfreien Spektrum gleicher
+  Amplitude. Offen, nicht als Abweichung gemeldet.
 - Der Fall liegt im quantitativen Bereich der BWPM (E5): alle reflektierenden Flächen stehen
   senkrecht zu z. Die geführten Moden im Kern laufen nur vorwärts; ihre Rückreflexe innerhalb der
   Faser wären der nicht konvergierende Fall aus K4 und kommen hier nicht vor.

@@ -8,6 +8,9 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K2 | homogenes Medium | ebene Welle (Dispersionsrelation), einmalige Winkelspektrum-Propagation | < 1e−12 | B1 | ✅ | `test_fpwpm.py` |
 | K3 | ebene Grenzfläche, schräger Einfall, FPWPM | Fresnel mit Winkeln (TE: t_s, TM: t_p cos θ₂/cos θ₁); Leistung eines Gaußstrahls aus dem Winkelspektrum | < 1e−12, auch absorbierend und Silber | B1 | ✅ | `test_fpwpm.py` |
 | K4 | Platte und Mehrschichtstapel schräg beleuchtet, BWPM | Transfer-Matrix des treppenförmig diskretisierten Stapels (tangentiale Felder, exakt); Airy-Formel | < 1e−12 nach 60 Iterationen, TE und TM, 0–70°, auch Silber und evaneszent; ε fällt geometrisch | B2 | ✅ | `test_bidirectional.py` |
+| K10 | 3D homogen, ebene Welle mit k_x, k_y ≠ 0 | Dispersionsrelation | < 1e−12 | B3 | ✅ | `test_volume3d.py` |
+| K11 | 3D ebener Stapel (Luft/1,5/2,1/Silber/1,5), beliebiger Azimut und Polarisation | Transfer-Matrix für s und p getrennt (tangentiale Felder) | < 1e−12 nach 30 Iterationen; prüft die Kopplung von E_x und E_y | B3 | ✅ | `test_volume3d.py` |
+| K12 | 3D in x homogen = 2D; dünn gespeicherte Reflexe = voll gespeicherte | 2D-BWPM; volle Speicherung | < 1e−12 bzw. bitgleich, Speicher < 1/5 | B3 | ✅ | `test_volume3d.py` |
 | K7 | Randzone der absorbierenden Maske | gleiche Rechnung im vierfach breiten Fenster ohne Maske | Fehler im Inneren < 1e−5 bei Randzone ≥ 20 λ, Ordnung 8 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K8 | gekippter Glaskeil (Flächenwinkel 0–60°) | Snellius und Fresnel an der gekippten Fläche | Richtung < 0,02° bis 45°; Leistung weicht bis 7 % ab (Grenze des Verfahrens); R folgt in B2 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K5 | Parabolspiegel (Silber) | Brennweite f′ (Parabel ohne Aberration) | Fokus 49,87 µm vom Scheitel bei f′ = 50 µm (wende2023: 49,85 µm), stabil bei Verfeinerung | B2 | ✅ (slow) | `test_mirror.py` |
@@ -118,6 +121,21 @@ Rückweg pixelweise in die schon metallischen Nachbarpixel der Treppe, wo er abs
 mit feinerem Gitter gibt es mehr Stufen. wende2023 zeigt den Parabolspiegel nur qualitativ.
 Folge: Die BWPM ist für Reflexe an **z-senkrechten** Flächen (Facetten, Schichten) quantitativ,
 an gekippten Flächen nur für Richtung und Phase brauchbar (Issue zur Abhilfe).
+
+## K10–K12: 3D (B3)
+
+Gitter 32 × 32, dx = dy = dz = λ/16, λ = 1 µm. K11 mit 30° längs x, 45° unter den Azimuten 45° und
+135° und senkrechtem Einfall, komplexe Polarisation: Transmission und Reflexion auf < 10⁻¹² nach 30
+Iterationen.
+
+**Beobachtung (Stabilität):** Mit deutlich mehr Iterationen wächst im 3D-Stapel mit n = 2,1 und
+Silber der Fehler wieder (45°: 2·10⁻¹⁷ nach 30, 4·10⁻¹⁴ nach 60, 2·10⁻⁴ nach 150, divergent nach 300
+Iterationen; etwa Faktor 1,3 je Iteration). Rundungsrauschen in Wellen, die in der Schicht mit
+n = 2,1 gefangen sind (außen evaneszent), wird von der Iteration verstärkt – die Erweiterung der
+Grenze aus K4: Dort konvergierten solche Wellen nicht, hier wachsen sie. In 2D trat das bei den
+geprüften Stapeln bis 300 Iterationen nicht auf. **Folge:** Iterationen begrenzen (die Quelle
+nutzt 1–10) und am Energieresiduum abbrechen; für viele Iterationen wäre ein Filter der gefangenen
+Anteile nötig.
 
 ## K1: Grenzflächenmatrizen (B0)
 

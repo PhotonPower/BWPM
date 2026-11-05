@@ -27,3 +27,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - Fusionspilot in 2D (`bwpm.pilot_imc`, K6): Faserfacette mit Index-Matching-Kappe, Kette Field
   Tracing (PFT, Winkelspektrum) → BWPM → Field Tracing; Extra `fusion` mit `fieldtracing`.
   Rückreflex 82,4 µm aus der Zwischenbildebene verschoben, an der Facette 4,2 % → 5,6·10⁻⁵.
+- B3: BWPM in 3D (`bwpm.volume3d`: `Grid3D`, `Bidirectional3D`, `absorbing_mask_2d`,
+  `memory_estimate`) mit Reflexspeicher nur an Grenzflächenpixeln; K10–K12; Messskript
+  `experiments/b3_scaling.py` für den Server. Streifende Wellen (k_z = 0) regularisiert.
