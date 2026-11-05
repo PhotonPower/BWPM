@@ -123,23 +123,31 @@ Bemerkungen zur Umsetzung:
 - Leistung durch eine Ebene über den Poynting-Fluss im Frequenzraum (vorlaufend und rücklaufend
   getrennt, mit E_z nach Abschnitt 2); Grundlage für ε und für die Kopplung (B4).
 
-## 7. Offene Punkte
+## 7. Entscheidungen und offene Punkte
 
-Als Issues mit Label `frage` vor bzw. in den genannten Stufen:
+Entschieden vom Maintainer am 2026-11-05 (Issues #1–#3, `docs/roadmap.md`, E2–E4):
 
-1. **Randbedingung quer (B1):** Die FFT ist periodisch. Die Quelle spricht von „perfectly
-   transparent boundary conditions“ ohne Verfahren. Optionen: Nullauffüllung mit genügend Rand,
-   absorbierende Randschicht (komplexe Brechzahl mit Profil), PML in der Ausbreitungsrichtung
-   nicht nötig. Entscheidung mit Messung des Randfehlers.
-2. **Zuordnung r, s und Lage der Felder im Rückwärtslauf (B2):** aus Tabelle 1 und Abb. 1(b);
-   Prüfung an der Platte gegen die Airy-Formel (K4).
-3. **Brechzahlstufen (B1):** Wie werden gekrümmte Flächen auf das Gitter gebracht (Mittelpunkt,
-   Flächenanteil)? Die Quelle erzeugt die Matrix aus einem Optikdesign (Abschnitt 2.1.4) ohne
-   Angabe der Regel.
+1. **Randbedingung quer (E2, #1):** absorbierende Maske nach jedem Schritt (glatte Funktion,
+   Mitte 1, Rand 0, etwa super-gaußförmig) als Standard; großes Fenster mit Nullrand als Referenz
+   in den Tests. Eine Absorberschicht über die Brechzahl scheidet aus, weil die BWPM an jeder Stufe
+   der Rampe einen Reflex speichern und zurücktragen würde und M wüchse. B1 misst die nötige Breite
+   der Randzone an einem gekippten Gaußstrahl, der das Fenster verlässt.
+2. **Zuordnung r, s und Lage der Felder im Rückwärtslauf (E3, #2):** unabhängig herleiten und
+   Tabelle 1 daran prüfen. Für ebene Wellen und ebene Schichten ist die BWPM nach unendlich vielen
+   Iterationen exakt die Transfer-Matrix-Lösung des treppenförmig diskretisierten Stapels; K4
+   prüft deshalb auf Maschinengenauigkeit (Platte und Mehrschichtstapel, schräg, TE und TM, auch
+   Silber), zusätzlich gegen die Airy-Formel. Abweichungen von Tabelle 1 werden Issues `paper`.
+3. **Brechzahlstufen (E4, #3):** Pixelmittelpunkt als Standard; Flächenanteil als Option nur für
+   dielektrische Übergänge, auf wenige Stufen gerundet. B1 misst an einem gekippten Glaskeil
+   (Flächenwinkel 0–60°) Richtung und Amplitude gegen Fresnel an der gekippten Fläche; daraus folgt
+   die Gültigkeitsgrenze im Flächenwinkel, die auch der Fusionsplaner braucht.
+
+Offen, zu klären in den genannten Stufen:
+
 4. **Speicher in 3D (B3):** nur Grenzflächen speichern; Aufwand und Speicher messen.
 5. **Leistungsnormierung der Ports (B4):** Kopplung an Raytatouille nach Fieldtracing ADR 0004.
 
 ## 8. Abnahme B0
 
 - K1 grün (`tests/test_interface.py`), Werte in Abschnitt 3.
-- Spezifikation vom Maintainer freigegeben; offene Punkte als Issues angelegt.
+- Spezifikation vom Maintainer freigegeben; Entscheidungen E2–E4 eingetragen.
