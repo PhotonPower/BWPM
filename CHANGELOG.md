@@ -24,3 +24,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   (Tabelle 1 der Quelle bestätigt); K5 Parabolspiegel (Fokus 49,87 µm bei f′ = 50 µm); K9
   gekippter Spiegel (Richtung konvergiert, Leistung nicht – Grenze des Verfahrens).
 - Entscheidung E5: Gültigkeitsgrenzen aus B1/B2 (gekippte Flächen, gefangene Wellen).
+- Fusionspilot in 2D (`bwpm.pilot_imc`, K6): Faserfacette mit Index-Matching-Kappe, Kette Field
+  Tracing (PFT, Winkelspektrum) → BWPM → Field Tracing; Extra `fusion` mit `fieldtracing`.
+  Rückreflex 82,4 µm aus der Zwischenbildebene verschoben, an der Facette 4,2 % → 5,6·10⁻⁵.

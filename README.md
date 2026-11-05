@@ -11,7 +11,8 @@ rechnen, die für rigorose Löser zu groß sind.
 Kopplung mit Raytatouille und Field Tracing über Gitterfeld-Ports („Raytatouille Fusion“). Deshalb
 gelten hier von Anfang an die Konventionen von Raytatouille.
 
-**Stand:** B0–B2 abgenommen (BWPM in 2D), Grenzen in E5, siehe
+**Stand:** B0–B2 abgenommen (BWPM in 2D), Grenzen in E5, Fusionspilot in 2D
+([Bericht](docs/pilot-imc-2d.md)), siehe
 [docs/roadmap.md](docs/roadmap.md).
 
 ## Installieren und testen
@@ -19,7 +20,7 @@ gelten hier von Anfang an die Konventionen von Raytatouille.
 ```bash
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-pip install -e .
+pip install -e .            # mit Fusionspilot: pip install -e ".[fusion]"
 pytest
 ruff check . && ruff format --check . && mypy
 ```
@@ -32,6 +33,7 @@ Python ≥ 3.10; Laufzeitabhängigkeiten nur NumPy und SciPy.
 - [Spezifikation](docs/spezifikation.md)
 - [Konventionen](docs/konventionen.md) (verbindlich, wie Raytatouille)
 - [Testfälle](docs/testfaelle.md)
+- [Fusionspilot in 2D](docs/pilot-imc-2d.md)
 - [Quellen](docs/quellen.md)
 - [Regeln für Programmieragenten](AGENTS.md)
 
