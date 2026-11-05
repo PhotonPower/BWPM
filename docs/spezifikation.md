@@ -112,6 +112,10 @@ Bemerkungen zur Umsetzung:
   Reflex rückwärts e^(2i k_z,r dz) (hin und zurück durch ñ(z)). Sie sind so gewählt, dass jedes Feld
   am rechten Rand seines Pixels liegt (Abb. 1(b) der Quelle). Die genaue Zuordnung von r und s im
   Rückwärtslauf legt B2 fest und prüft sie an der Platte (K4).
+- **Gemessene Grenzen (B2):** (a) Für Wellen, die durch Totalreflexion in einer Schicht gefangen
+  sind, konvergiert die Iteration nicht (Neumann-Reihe mit Spektralradius ≥ 1, K4). (b) An
+  gekippten reflektierenden Flächen konvergiert die Richtung des Reflexes, die reflektierte
+  Leistung nicht; sie liegt weit unter Fresnel (Silber 10°: 0,59–0,73 statt 0,98, K9).
 - **Abbruch:** Die Quelle misst die Konvergenz an ε = 1 − |R + T| (Abschnitt 2.1.3) und empfiehlt
   drei Iterationen; bei stark reflektierenden Spiegeln reicht eine (Abschnitt 2.1.4). Für die
   Umsetzung: ε als Diagnose je Iteration, Abbruch bei einer Schwelle oder einer Höchstzahl.
@@ -141,7 +145,8 @@ Entschieden vom Maintainer am 2026-11-05 (Issues #1–#3, `docs/roadmap.md`, E2�
    Tabelle 1 daran prüfen. Für ebene Wellen und ebene Schichten ist die BWPM nach unendlich vielen
    Iterationen exakt die Transfer-Matrix-Lösung des treppenförmig diskretisierten Stapels; K4
    prüft deshalb auf Maschinengenauigkeit (Platte und Mehrschichtstapel, schräg, TE und TM, auch
-   Silber), zusätzlich gegen die Airy-Formel. Abweichungen von Tabelle 1 werden Issues `paper`.
+   Silber), zusätzlich gegen die Airy-Formel. **Ergebnis (B2):** Die Herleitung (Kopf von
+   `bwpm.bidirectional`) stimmt mit Tabelle 1 überein; K4 < 10⁻¹².
 3. **Brechzahlstufen (E4, #3):** Pixelmittelpunkt als Standard; Flächenanteil als Option nur für
    dielektrische Übergänge, auf wenige Stufen gerundet. B1 misst an einem gekippten Glaskeil
    (Flächenwinkel 0–60°) Richtung und Amplitude gegen Fresnel an der gekippten Fläche; daraus folgt

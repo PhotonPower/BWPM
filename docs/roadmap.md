@@ -46,5 +46,9 @@ Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5.
   Vektoren) und bleibt deshalb in 2D. B3 klärt, ob die Speicherung nur an Grenzflächen reicht.
 - **Randbedingungen quer:** Die FFT ist periodisch; entschieden ist eine absorbierende Maske (E2).
   Restreflexion durch zu steile Masken misst B1.
+- **Leistung an gekippten Flächen (gemessen in B1/B2, K8, K9):** Transmission auf einige Prozent,
+  Reflexion an gekippten Flächen grob falsch und nicht konvergent. Abhilfe offen (Issue).
+- **Geführte Wellen (K4):** Die Iteration konvergiert nicht für durch Totalreflexion gefangene
+  Wellen.
 - **Wahl der Brechzahlstufen:** M wächst bei gekrümmten Flächen und Gradienten; der Aufwand geht mit
   M². B1 misst den Einfluss.
