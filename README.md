@@ -11,7 +11,7 @@ rechnen, die für rigorose Löser zu groß sind.
 Kopplung mit Raytatouille und Field Tracing über Gitterfeld-Ports („Raytatouille Fusion“). Deshalb
 gelten hier von Anfang an die Konventionen von Raytatouille.
 
-**Stand:** Stufe B0 (Spezifikation und Konventionsabgleich), siehe
+**Stand:** B0 abgenommen, B1 (FPWPM in 2D) umgesetzt, siehe
 [docs/roadmap.md](docs/roadmap.md).
 
 ## Installieren und testen

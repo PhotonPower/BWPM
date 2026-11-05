@@ -91,6 +91,11 @@ Bemerkungen zur Umsetzung:
   λ/(5 n_max) (Abschnitt 2.2.2).
 - Mehrfachreflexionen innerhalb eines Schritts werden nicht erfasst; sie entstehen über die
   Iterationen (Abschnitt 5).
+- **Gemessene Grenze (K8, B1):** An gekippten Flächen stimmt die Richtung bis 45° Flächenwinkel auf
+  ≤ 0,01°, die durchgelassene Leistung aber nur auf einige Prozent (bis 7 % bei 20–30°, nicht
+  konvergent in dz, auch über 1). Bei 60° weicht auch die Richtung um etwa 2° ab.
+- **Randmaske (K7, B1):** Randzone ≥ 20 λ, Ordnung 8 (Fehler im Inneren < 10⁻⁵ bis 30°
+  Ausbreitungswinkel). Code `bwpm.fpwpm.absorbing_mask`.
 
 ## 5. Bidirektionales Verfahren (BWPM)
 
