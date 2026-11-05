@@ -28,10 +28,16 @@ def longitudinal_wavenumber(index: complex, k0: float, k_perp_sq: FloatArray) ->
         index: complex refractive index ñ = n + iκ, κ ≥ 0.
         k0: vacuum wavenumber 2π/λ in 1/mm.
         k_perp_sq: |k⊥|² in 1/mm².
+
+    |k_z| < 10⁻¹²·k₀ (exactly grazing) is replaced by i·10⁻¹²·k₀ to avoid 0/0 in Fresnel.
     """
     kz = np.sqrt(np.asarray(complex(index) ** 2 * k0 * k0 - k_perp_sq, dtype=np.complex128))
     flip = (kz.imag < 0) | ((kz.imag == 0) & (kz.real < 0))
-    return np.asarray(np.where(flip, -kz, kz))
+    kz = np.where(flip, -kz, kz)
+    # exactly grazing waves (k_z = 0, e.g. |k⊥| = k on the FFT grid) make Fresnel 0/0; they carry
+    # no power. Shift them to a tiny evanescent value (as FourierGrating does for β).
+    tiny = 1e-12 * k0
+    return np.asarray(np.where(np.abs(kz) < tiny, 1j * tiny, kz))
 
 
 @dataclass(frozen=True)

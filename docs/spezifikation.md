@@ -116,6 +116,10 @@ Bemerkungen zur Umsetzung:
   sind, konvergiert die Iteration nicht (Neumann-Reihe mit Spektralradius ≥ 1, K4). (b) An
   gekippten reflektierenden Flächen konvergiert die Richtung des Reflexes, die reflektierte
   Leistung nicht; sie liegt weit unter Fresnel (Silber 10°: 0,59–0,73 statt 0,98, K9).
+- **Stabilität (B3, K11):** Bei vielen Iterationen kann Rundungsrauschen in gefangenen Wellen
+  wachsen (3D-Stapel mit n = 2,1 und Silber: Faktor ≈ 1,3 je Iteration). Iterationen begrenzen.
+- **Streifende Wellen:** k_z = 0 auf dem Gitter wird durch i·10⁻¹²·k₀ ersetzt (sonst 0/0 in
+  Fresnel; tritt in 3D bei |k⊥| = n k₀ genau auf).
 - **Abbruch:** Die Quelle misst die Konvergenz an ε = 1 − |R + T| (Abschnitt 2.1.3) und empfiehlt
   drei Iterationen; bei stark reflektierenden Spiegeln reicht eine (Abschnitt 2.1.4). Für die
   Umsetzung: ε als Diagnose je Iteration, Abbruch bei einer Schwelle oder einer Höchstzahl.
@@ -154,7 +158,11 @@ Entschieden vom Maintainer am 2026-11-05 (Issues #1–#3, `docs/roadmap.md`, E2�
 
 Offen, zu klären in den genannten Stufen:
 
-4. **Speicher in 3D (B3):** nur Grenzflächen speichern; Aufwand und Speicher messen.
+4. **Speicher in 3D (B3):** umgesetzt in `bwpm.volume3d`: Reflexquellen nur an Pixeln, an denen
+   sich die Brechzahl zwischen zwei Scheiben ändert, als (Pixelindex, Wert); Zwischenebenen nur auf
+   Anforderung. Modell `memory_estimate`: Operatoren (Arten × Paare × N_x N_y × 64 B), etwa acht
+   Arbeitsebenen (× 32 B) und die Quellen (× 40 B). Messungen auf dem Rechner des Maintainers mit
+   `experiments/b3_scaling.py`.
 5. **Leistungsnormierung der Ports (B4):** Kopplung an Raytatouille nach Fieldtracing ADR 0004.
 
 ## 8. Abnahme B0

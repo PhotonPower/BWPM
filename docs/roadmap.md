@@ -25,7 +25,7 @@ Leitlinien:
 | **B0 Spezifikation** | Formeln von FPWPM und BWPM aus wende2023 in den Konventionen von Raytatouille, Konventionsabgleich der Grenzflächenmatrizen, offene Punkte | Spezifikation freigegeben; K1 grün |
 | **B1 FPWPM 2D** | Vorwärtspropagation in (y, z) mit diskreten Brechzahlen, Gewichtsfunktion, absorbierende Maske (E2), Brechzahlstufen (E4) | K2, K3; Konvergenz in dz und dy; Randzone am Gaußstrahl; Glaskeil 0–60° |
 | **B2 BWPM 2D** | Reflexionen, Rückwärtspropagation, Iterationen, Ausbreitungsfaktoren nach Tabelle 1 (E3) | K4 gegen Transfer-Matrix des diskretisierten Stapels auf Maschinengenauigkeit und gegen Airy; K5 |
-| **B3 3D** | (x, y, z) mit Speicherung der Reflexe nur an Grenzflächen; Speicher- und Laufzeitmodell | 3D-Platte, Linse; Messungen auf dem Rechner des Maintainers |
+| **B3 3D** | (x, y, z) mit Speicherung der Reflexe nur an Grenzflächen; Speicher- und Laufzeitmodell | K10–K12; Messlauf `experiments/b3_scaling.py` auf dem Rechner des Maintainers (offen) |
 | **B4 Kern und Ports** | C++/CUDA-Kern, Python-Anbindung, Adapter nach dem Fusionsplan (Abschnitt 6.4), Konformitätstests (6.5) | Sollwertdateien aus B1–B3 bitgleich bzw. in Toleranz |
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
 
