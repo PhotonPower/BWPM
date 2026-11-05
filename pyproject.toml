@@ -1,0 +1,44 @@
+# Python package bwpm: reference implementation of the fast bidirectional vector wave
+# propagation method. Development tools are pinned in requirements-dev.txt.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bwpm"
+version = "0.1.0"
+description = "Fast bidirectional vector wave propagation method (BWPM), reference implementation"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "scipy>=1.10"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+bwpm = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Expensive reference computations carry the marker `slow`; run them with `pytest -m slow`.
+addopts = "-ra -m 'not slow'"
+markers = ["slow: expensive reference computation (pytest -m slow)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "NPY", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # Greek letters and typographic characters in physics text
+
+[tool.mypy]
+strict = true
+python_version = "3.10"
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["scipy", "scipy.*"]
+ignore_missing_imports = true
