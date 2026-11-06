@@ -74,6 +74,12 @@ Leistungsbilanz R + T = 1 auf einem 41 × 41-Gitter in k⊥ (Abweichung < 10⁻�
    der Code hält die Form der Quelle bei, damit sie nachprüfbar bleibt.
 4. Totalreflexion und absorbierende Medien brauchen keine Sonderbehandlung, wenn k_z nach der
    Konvention gewählt wird.
+5. **Streifender Einfall (#25):** Liegt ein Gitterpunkt bis auf Rundung auf |k⊥| = ñk₀, ist
+   ñ²k₀² − |k⊥|² reines Rundungsrauschen, dessen Wert von der Reihenfolge der Rechenschritte
+   abhängt (gemessen: GCC 14 gegen NumPy T₀₀ = 2 + 1,2·10⁻⁸ i gegen 1,99999999999982; Folge in 3D
+   10⁻⁹). Regel in Python, C++ und CUDA gleich: Ist |ñ²k₀² − |k⊥|²| ≤ 10⁻¹²·|ñ²k₀²|, gilt die Welle
+   als exakt streifend, k_z = i·10⁻¹²·k₀. Betroffen sind nur Wellen, die bis auf 10⁻⁶ streifend
+   sind und keine Leistung tragen.
 
 ## 4. Vorwärtsschritt (FPWPM)
 

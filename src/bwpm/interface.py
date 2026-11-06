@@ -20,6 +20,8 @@ import numpy as np
 
 from bwpm._types import ComplexArray, FloatArray
 
+GRAZING_TOLERANCE = 1e-12  # relative to |ñ²k₀²|, see longitudinal_wavenumber
+
 
 def longitudinal_wavenumber(index: complex, k0: float, k_perp_sq: FloatArray) -> ComplexArray:
     """k_z = sqrt(ñ²k₀² − |k⊥|²) with Im k_z ≥ 0, and Re k_z ≥ 0 if Im k_z = 0 (1/mm).
@@ -29,13 +31,19 @@ def longitudinal_wavenumber(index: complex, k0: float, k_perp_sq: FloatArray) ->
         k0: vacuum wavenumber 2π/λ in 1/mm.
         k_perp_sq: |k⊥|² in 1/mm².
 
-    |k_z| < 10⁻¹²·k₀ (exactly grazing) is replaced by i·10⁻¹²·k₀ to avoid 0/0 in Fresnel.
+    Grazing rule (docs/spezifikation.md §3, #25): if |ñ²k₀² − |k⊥|²| ≤ 10⁻¹²·|ñ²k₀²| the wave counts
+    as exactly grazing and k_z = i·10⁻¹²·k₀ (avoids 0/0 in Fresnel; identical in C++ and CUDA).
     """
-    kz = np.sqrt(np.asarray(complex(index) ** 2 * k0 * k0 - k_perp_sq, dtype=np.complex128))
+    n2k2 = complex(index) ** 2 * k0 * k0
+    q = np.asarray(n2k2 - k_perp_sq, dtype=np.complex128)
+    # grazing rule (#25): within 1e-12 of |ñ²k₀²| the difference is rounding noise whose value
+    # depends on the order of operations (Python, C++, CUDA); treat it as exactly grazing
+    q = np.where(np.abs(q) <= GRAZING_TOLERANCE * abs(n2k2), 0.0, q)
+    kz = np.sqrt(q)
     flip = (kz.imag < 0) | ((kz.imag == 0) & (kz.real < 0))
     kz = np.where(flip, -kz, kz)
-    # exactly grazing waves (k_z = 0, e.g. |k⊥| = k on the FFT grid) make Fresnel 0/0; they carry
-    # no power. Shift them to a tiny evanescent value (as FourierGrating does for β).
+    # exactly grazing waves (k_z = 0) make Fresnel 0/0; they carry no power. Shift them to a tiny
+    # evanescent value (as FourierGrating does for β).
     tiny = 1e-12 * k0
     return np.asarray(np.where(np.abs(kz) < tiny, 1j * tiny, kz))
 

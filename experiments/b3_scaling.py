@@ -70,6 +70,20 @@ def volume(grid: Grid3D, with_imc: bool) -> tuple[list[complex], np.ndarray, flo
     return [1.0 + 0j, N_IMC + 0j, N_CORE + 0j, N_CLAD + 0j], labels, z_in
 
 
+def count_pairs(labels: np.ndarray) -> int:  # type: ignore[type-arg]
+    """Number of distinct (label before, label after) pairs between neighbouring slabs.
+
+    Plane by plane with bincount (O(N), little memory); np.unique(axis=0) over all ~10⁸–10⁹
+    pairs at once took > 40 min on the server (report in PR #23).
+    """
+    m = int(labels.max()) + 1
+    seen = np.zeros(m * m, dtype=bool)
+    for j in range(labels.shape[0] - 1):
+        code = labels[j].astype(np.int64).ravel() * m + labels[j + 1].astype(np.int64).ravel()
+        seen |= np.bincount(code, minlength=m * m).astype(bool)
+    return int(seen.sum())
+
+
 def strehl(spectrum: np.ndarray, grid: Grid3D, k: float) -> tuple[float, float]:  # type: ignore[type-arg]
     kx, ky = grid.k_grid()
     support = np.sqrt(kx * kx + ky * ky) <= NA * grid.k0
@@ -128,7 +142,7 @@ def run(
     s, best = (
         strehl(np.fft.fft2(forward) * shift, grid, grid.k0 * N_IMC) if with_imc else (0.0, 0.0)
     )
-    pairs = len(np.unique(np.stack([labels[:-1].ravel(), labels[1:].ravel()], 1), axis=0))
+    pairs = count_pairs(labels)
     return {
         "fraction": fraction,
         "n": n,

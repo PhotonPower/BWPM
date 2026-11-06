@@ -13,7 +13,11 @@ namespace bwpm {
 using cplx = std::complex<double>;
 using Matrix2 = std::array<cplx, 4>;  // row-major [[m00, m01], [m10, m11]]
 
-// k_z = sqrt(ñ²k₀² − k⊥²), Im k_z ≥ 0 (Re k_z ≥ 0 if Im k_z = 0); |k_z| < 1e-12·k₀ -> i·1e-12·k₀.
+// Relative tolerance of the grazing rule (#25, docs/spezifikation.md §3).
+inline constexpr double kGrazingTolerance = 1e-12;
+
+// k_z = sqrt(ñ²k₀² − k⊥²), Im k_z ≥ 0 (Re k_z ≥ 0 if Im k_z = 0); |ñ²k₀² − k⊥²| ≤ 1e-12·|ñ²k₀²|
+// counts as exactly grazing; |k_z| < 1e-12·k₀ -> i·1e-12·k₀.
 cplx longitudinal_wavenumber(cplx index, double k0, double k_perp_sq);
 
 struct Fresnel {

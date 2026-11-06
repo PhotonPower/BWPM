@@ -82,7 +82,7 @@ Für den Kern und den Adapter, gegen unabhängige Werte:
 | B4a | Sollwertdateien aus der Python-Referenz (`tools/export_reference.py`, `reference/`) | Dateien aktuell, Rundreise, unabhängige Werte (✅) |
 | B4b | Build-Gerüst (CMake, Presets, scikit-build-core, pybind11, CI mit Compiler), C++ `interface` (T, R) | `interface_matrices` in Toleranz (✅, K13) |
 | B4c | CPU-Kern 2D/3D: Schritt, Reflexquellen, Iterationen, Maske (pocketfft, OpenMP) | alle Sollwertdateien; Laufzeit gegen NumPy (✅, K14) |
-| B4d | CUDA-Kern (cuFFT, T/R im Kernel, Batches) | Sollwertdateien in GPU-Toleranz; Messlauf IMC bei λ/(5 n) auf dem Server (Code geschrieben, Test auf dem Server offen) |
+| B4d | CUDA-Kern (cuFFT, T/R im Kernel, Batches) | Sollwertdateien in GPU-Toleranz; Messlauf IMC bei λ/(5 n) auf dem Server (gemessen: 240 s, K15) |
 | B4e | Adapter `bwpm.adapter` und Konformitätstests | Abschnitt 5 |
 
 ## 7. Risiken
@@ -106,6 +106,8 @@ BWPM_REQUIRE_CUDA=1 pytest tests/test_core_cuda.py -v
 python experiments/b3_scaling.py --fractions 2.5 3.5 5 --window-um 96 --iterations 2 --core --backend cuda
 ```
 
+Auf dem Rechner des Maintainers funktionierte (Bericht in PR #23): nvcc 12.9, gcc-toolset-15 als
+Host-Compiler, `-C cmake.define.BWPM_STATIC_LIBSTDCXX=ON` (conda-Python mit älterer libstdc++).
 GCC 14 (AlmaLinux 10) wird von nvcc erst ab CUDA 12.8 unterstützt; mit älterem CUDA hilft
 `-C cmake.define.CMAKE_CUDA_FLAGS=-allow-unsupported-compiler` oder ein älterer Host-Compiler
 (`-C cmake.define.CMAKE_CUDA_HOST_COMPILER=...`).

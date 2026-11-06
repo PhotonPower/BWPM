@@ -47,3 +47,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B4d (erste Fassung, Test auf dem Server offen): CUDA-Kern `bwpm._core.CudaSolver` (cuFFT,
   T und R mit Ausbreitungsfaktor im Kernel, dünner Reflexspeicher auf dem Gerät), CMake-Option
   `BWPM_ENABLE_CUDA`, Fassade `backend="auto"|"cpu"|"cuda"`, Tests K15, Messskript `--backend`.
+- Regel für streifenden Einfall (#25): |ñ²k₀² − k⊥²| ≤ 10⁻¹²·|ñ²k₀²| gilt in Python, C++ und CUDA
+  als exakt streifend; vorher hing das Ergebnis an diesen Punkten vom Compiler ab.
+- B4d gemessen (K15): Faserfacette bei λ/(5 n) in 240 s auf der RTX 6000 Ada (130–150-mal
+  schneller als NumPy); `BWPM_STATIC_LIBSTDCXX` für conda-Pythons; Messskript zählt die
+  Brechzahlpaare ebenenweise (vorher > 40 min nach dem Lauf).

@@ -65,7 +65,10 @@ struct DeviceBuffer {
 // ---- interface formulas (copy of cpp/src/interface.cpp, device version) --------------------
 
 __device__ dcplx kz_of(dcplx index, double k0, double kp2) {
-  dcplx kz = thrust::sqrt(index * index * (k0 * k0) - kp2);
+  const dcplx n2k2 = index * index * (k0 * k0);
+  dcplx q = n2k2 - kp2;
+  if (thrust::abs(q) <= kGrazingTolerance * thrust::abs(n2k2)) q = 0.0;  // grazing rule (#25)
+  dcplx kz = thrust::sqrt(q);
   if (kz.imag() < 0.0 || (kz.imag() == 0.0 && kz.real() < 0.0)) kz = -kz;
   const double tiny = 1e-12 * k0;
   if (thrust::abs(kz) < tiny) kz = dcplx(0.0, tiny);

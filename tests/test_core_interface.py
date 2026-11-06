@@ -63,3 +63,23 @@ def test_facade_uses_core() -> None:
 def test_shape_mismatch_is_an_error() -> None:
     with pytest.raises(ValueError):
         _core.transmission_matrix(np.zeros(3), np.zeros(4), 1.0, 1.5, 1.0)
+
+
+@pytest.mark.parametrize(("n1", "n2"), [(1.0, 1.5), (1.5, 1.0)])
+def test_grazing_rule_is_independent_of_rounding(n1: complex, n2: complex) -> None:
+    # #25: at |k⊥| = n₁k₀ the difference n₁²k₀² − k⊥² is rounding noise whose value depends on the
+    # order of operations (GCC 14 vs. NumPy gave T₀₀ = 2 + 1.2e-8j vs. 1.99999999999982). The
+    # grazing rule makes it exact: perturbing k⊥ by a few ulp must not change the matrices.
+    k0 = 2 * np.pi / 0.5e-3
+    for angle in (0.0, 0.3, 1.1):
+        k = n1 * k0
+        for rel in (0.0, 3e-16, -3e-16, 1e-14):
+            kx = np.array([k * (1 + rel) * np.cos(angle)])
+            ky = np.array([k * (1 + rel) * np.sin(angle)])
+            for core_fn, ref_fn in (
+                (_core.transmission_matrix, transmission_matrix),
+                (_core.reflection_matrix, reflection_matrix),
+            ):
+                a = core_fn(kx, ky, n1, n2, k0)
+                b = ref_fn(kx, ky, n1, n2, k0)
+                assert np.allclose(a, b, rtol=1e-13, atol=1e-13), (angle, rel)
