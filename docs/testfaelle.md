@@ -14,6 +14,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K13 | C++-Kern: Grenzflächenmatrizen (`bwpm._core`) | Sollwertdatei `interface_matrices`; Python-Referenz auf einem FFT-Gitter mit k⊥ = 0, streifend, evaneszent | Dateitoleranz bzw. < 1e−13 | B4b | ✅ | `test_core_interface.py` |
 | K14 | C++-Kern: FPWPM/BWPM in 2D und 3D (`bwpm._core.Solver`, `bwpm.fast.run_2d/run_3d`) | alle Sollwertdateien unter `reference/`; Python-Referenz auf zufälligen 3D-Volumina (vier Materialien inkl. Silber, mit und ohne Maske, dx ≠ dy) | Dateitoleranz bzw. < 1e−12 des Eingangs; gespeicherte Reflexwerte gleich; Threads ändern nichts | B4c | ✅ | `test_core_solver.py` |
 | K15 | CUDA-Kern (`bwpm._core.CudaSolver`, `backend="cuda"`) | alle Sollwertdateien; CPU-Kern auf zufälligen 3D-Volumina | rel 1e−10, abs 1e−11 des Maximums; CUDA gegen CPU ≈ 1e−16 | B4d | ✅ (Server, 2026-11-06) | `test_core_cuda.py` |
+| K16 | Fusion-Adapter, Konformität (`bwpm.adapter`) | Transfer-Matrix (s, p getrennt) und Airy; Energieerhaltung; Reziprozität der Transmission; Determinismus; Verschiebung am zentrierten Port | < 1e−12 (CUDA 1e−10 beim Determinismus), für jedes verfügbare Backend | B4e | ✅ | `test_adapter_conformance.py` |
 | K7 | Randzone der absorbierenden Maske | gleiche Rechnung im vierfach breiten Fenster ohne Maske | Fehler im Inneren < 1e−5 bei Randzone ≥ 20 λ, Ordnung 8 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K8 | gekippter Glaskeil (Flächenwinkel 0–60°) | Snellius und Fresnel an der gekippten Fläche | Richtung < 0,02° bis 45°; Leistung weicht bis 7 % ab (Grenze des Verfahrens); R folgt in B2 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K5 | Parabolspiegel (Silber) | Brennweite f′ (Parabel ohne Aberration) | Fokus 49,87 µm vom Scheitel bei f′ = 50 µm (wende2023: 49,85 µm), stabil bei Verfeinerung | B2 | ✅ (slow) | `test_mirror.py` |
@@ -221,6 +222,27 @@ bei λ/(5 n) etwa 0,06 s je Ebene und Durchlauf – das Ziel aus `docs/b4-entwur
 ohne Bündelung der Paare erreicht. Strehl und Rückreflex wie die Referenz; bei λ/(5 n) Strehl
 0,99691 (Konvergenz in der 5. Stelle). Der Host-Speicher wächst mit dem Kennungsfeld (int32 im
 Kern, 4 B je Gitterpunkt), die GPU braucht wenig, weil T und R im Kernel berechnet werden.
+
+## K16: Konformität des Adapters (B4e)
+
+Für jedes verfügbare Backend (Python-Referenz, CPU-Kern, CUDA) über die Adapter-Schnittstelle
+(`prepare`/`apply`, Ports in den Konventionen von Raytatouille):
+
+- Schichtstapel Luft/1,5/2,1 + 0,02i/1,45/Luft, ebene Welle 0°, 30° und 45° unter den Azimuten
+  45° und 135°, komplexe Polarisation, 30 Iterationen: reflektiertes und durchgelassenes
+  Querfeld gegen die Transfer-Matrix auf < 10⁻¹²; Platte n = 1,5 gegen Airy auf < 10⁻¹².
+- Energieerhaltung (verlustfreier Stapel, bandbegrenztes Zufallsfeld, 60 Iterationen):
+  (P_R + P_T)/P_in − 1 < 10⁻¹², mit dem Poynting-Fluss der Ports (`port_power`).
+- Reziprozität: asymmetrischer, absorbierender Stapel mit Silber, Vakuum auf beiden Seiten;
+  Transmission von vorn und von hinten (gespiegelter Stapel) gleich auf < 10⁻¹², Reflexion
+  verschieden (> 10⁻³).
+- Determinismus: gleiche Struktur → gleicher Inhalts-Hash, gleiche Felder (Python und CPU bitgleich,
+  CUDA in 10⁻¹⁰); andere Struktur → anderer Hash.
+- Port-Konvention: Verschiebung des Eingangs um ganze Pixel verschiebt den Ausgang gleich
+  (< 10⁻¹³) – kein Bezug auf den Fensterrand.
+
+Offen als Querprobe des Fusionsplans: derselbe Schichtstapel mit FourierGrating, sobald dessen
+Adapter existiert.
 
 ## K1: Grenzflächenmatrizen (B0)
 

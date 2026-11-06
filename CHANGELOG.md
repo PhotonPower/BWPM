@@ -53,3 +53,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   schneller als NumPy); `BWPM_STATIC_LIBSTDCXX` für conda-Pythons; Messskript zählt die
   Brechzahlpaare ebenenweise (vorher > 40 min nach dem Lauf).
 - B4d auf dem Server bestätigt (alle Tests grün mit CUDA und gcc-toolset-15).
+- B4e: Fusion-Adapter `bwpm.adapter` (`describe`, `prepare` mit Inhalts-Hash, `apply`, `estimate`,
+  Ports mit `port_power` in 3D, `plane_wave`) und Konformitätstests K16 für alle Backends:
+  Transfer-Matrix, Airy, Energieerhaltung, Reziprozität, Determinismus, zentrierter Port.
