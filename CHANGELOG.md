@@ -52,3 +52,4 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B4d gemessen (K15): Faserfacette bei λ/(5 n) in 240 s auf der RTX 6000 Ada (130–150-mal
   schneller als NumPy); `BWPM_STATIC_LIBSTDCXX` für conda-Pythons; Messskript zählt die
   Brechzahlpaare ebenenweise (vorher > 40 min nach dem Lauf).
+- B4d auf dem Server bestätigt (alle Tests grün mit CUDA und gcc-toolset-15).
