@@ -165,7 +165,16 @@ NA 0,4, x-polarisiert, Kern rund mit 2 µm), Fenster 96 µm, 2 Iterationen, NumP
 4. Das Modell liegt mit den Kennungen bei 88–91 % des gemessenen Spitzenspeichers; der Rest sind
    temporäre Arrays und der Python-Prozess.
 
-Offen als Vergleich: derselbe Lauf ohne Kappe (`--bare`) bei λ/(2,5 n).
+**Vergleich ohne Kappe** (`--bare`, λ/(2,5 n), 2 Iterationen, `--workers -1`, 2026-11-06):
+572² × 208, 19,6 min, 0,63 GB (Modell 0,57 GB), 6,5·10⁵ gespeicherte Reflexwerte (nur die
+Facette, je Richtung eine Ebene), Rückreflex 3,93 % – in 3D etwas weniger als in 2D (4,23 %), weil
+der runde Fokus mehr Fläche des Mantels (n = 1,4485, Fresnel 3,7 %) trifft als der Linienfokus.
+Mit Kappe kommen 4,18 % von der Kappenoberfläche, aber 82 µm vor der Facette (K6).
+
+**Threads in NumPy:** 5,6 s je Ebene (beide Iterationen) gegen 6,1 s im einkernigen Lauf mit
+Kappe – die Option `--workers` bringt kaum etwas, weil nicht die FFTs, sondern die
+elementweisen Schritte (Matrix × Spektrum, Maskierung) in NumPy dominieren. Der Gewinn kommt
+aus dem C++-Kern (K14: einkernig ×3,7) und der GPU (B4d).
 
 ## K14: CPU-Kern (B4c)
 
