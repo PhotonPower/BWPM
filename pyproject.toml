@@ -48,3 +48,7 @@ files = ["src", "tests"]
 [[tool.mypy.overrides]]
 module = ["scipy", "scipy.*", "fieldtracing", "fieldtracing.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["reference_cases"]  # tools/, imported by the reference-file tests via sys.path
+ignore_missing_imports = true

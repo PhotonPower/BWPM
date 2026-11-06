@@ -34,6 +34,7 @@ Python ≥ 3.10; Laufzeitabhängigkeiten nur NumPy und SciPy.
 - [Konventionen](docs/konventionen.md) (verbindlich, wie Raytatouille)
 - [Testfälle](docs/testfaelle.md)
 - [Fusionspilot in 2D](docs/pilot-imc-2d.md)
+- [Entwurf B4: C++/CUDA-Kern, Ports, Adapter](docs/b4-entwurf.md)
 - [Quellen](docs/quellen.md)
 - [Regeln für Programmieragenten](AGENTS.md)
 

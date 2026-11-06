@@ -32,3 +32,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   `experiments/b3_scaling.py` für den Server. Streifende Wellen (k_z = 0) regularisiert.
 - Messlauf B3 eingetragen (3D-Strehl 0,997, Laufzeit und Speicher); `Bidirectional3D(workers=…)`
   mit `scipy.fft` für mehrere Kerne; Speichermodell um die Materialkennungen ergänzt.
+- B4a: Entwurf `docs/b4-entwurf.md` (Aufbau, Algorithmus im Kern, Ports, Adapter, Teilstufen) und
+  Sollwertdateien für den Kern (`tools/export_reference.py`, `reference/*.result.json` im Format
+  `raytatouille-result`, `bwpm.results` aus Fieldtracing übernommen).
