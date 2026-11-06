@@ -26,7 +26,7 @@ Leitlinien:
 | **B1 FPWPM 2D** | Vorwärtspropagation in (y, z) mit diskreten Brechzahlen, Gewichtsfunktion, absorbierende Maske (E2), Brechzahlstufen (E4) | K2, K3; Konvergenz in dz und dy; Randzone am Gaußstrahl; Glaskeil 0–60° |
 | **B2 BWPM 2D** | Reflexionen, Rückwärtspropagation, Iterationen, Ausbreitungsfaktoren nach Tabelle 1 (E3) | K4 gegen Transfer-Matrix des diskretisierten Stapels auf Maschinengenauigkeit und gegen Airy; K5 |
 | **B3 3D** | (x, y, z) mit Speicherung der Reflexe nur an Grenzflächen; Speicher- und Laufzeitmodell | K10–K12; Messlauf auf dem Rechner des Maintainers (`docs/testfaelle.md`, Messlauf B3) ✅ |
-| **B4 Kern und Ports** | C++/CUDA-Kern, Python-Anbindung, Adapter nach dem Fusionsplan (Abschnitt 6.4), Konformitätstests (6.5) | Sollwertdateien aus B1–B3 bitgleich bzw. in Toleranz |
+| **B4 Kern und Ports** | C++/CUDA-Kern, Python-Anbindung, Adapter nach dem Fusionsplan (Abschnitt 6.4), Konformitätstests (6.5); Entwurf und Teilstufen B4a–B4e in [docs/b4-entwurf.md](b4-entwurf.md) | Sollwertdateien aus B1–B3 (`reference/`) bitgleich bzw. in Toleranz |
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
