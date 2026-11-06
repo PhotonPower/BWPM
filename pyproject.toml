@@ -2,8 +2,10 @@
 # propagation method. Development tools are pinned in requirements-dev.txt.
 
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+# scikit-build-core builds the optional C++ module bwpm._core (decision E7, D1/D2). Without a
+# compiler: pip install . -C cmake.define.BWPM_BUILD_CORE=OFF (pure Python reference).
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "bwpm"
@@ -20,11 +22,15 @@ fusion = [
     "fieldtracing @ git+https://github.com/PhotonPower/Fieldtracing.git@6da9983387b8872d3241851d04d2012df5baaf48",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.24"
+build-dir = "build/py-{wheel_tag}"
+wheel.packages = ["src/bwpm"]
+sdist.exclude = ["build", "experiments/out", ".github"]
 
-[tool.setuptools.package-data]
-bwpm = ["py.typed"]
+[tool.scikit-build.cmake.define]
+BWPM_BUILD_CORE = "ON"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

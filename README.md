@@ -25,7 +25,9 @@ pytest
 ruff check . && ruff format --check . && mypy
 ```
 
-Python ≥ 3.10; Laufzeitabhängigkeiten nur NumPy und SciPy.
+Python ≥ 3.10; Laufzeitabhängigkeiten nur NumPy und SciPy. `pip install -e .` baut zusätzlich den
+C++-Kern `bwpm._core` (C++20-Compiler nötig); ohne Compiler:
+`pip install -e . -C cmake.define.BWPM_BUILD_CORE=OFF`.
 
 ## Dokumentation
 

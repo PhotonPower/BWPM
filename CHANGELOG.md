@@ -35,3 +35,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B4a: Entwurf `docs/b4-entwurf.md` (Aufbau, Algorithmus im Kern, Ports, Adapter, Teilstufen) und
   Sollwertdateien für den Kern (`tools/export_reference.py`, `reference/*.result.json` im Format
   `raytatouille-result`, `bwpm.results` aus Fieldtracing übernommen).
+- B4b: Build mit scikit-build-core, CMake-Presets und pybind11 (E7); C++-Kern `bwpm._core` mit k_z,
+  Fresnel-Koeffizienten und Grenzflächenmatrizen; Fassade `bwpm.fast`; CI baut den Kern unter
+  Linux und Windows und prüft zusätzlich die Installation ohne Compiler.

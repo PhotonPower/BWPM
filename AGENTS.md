@@ -13,10 +13,14 @@ erste Modul, das von Anfang an für die Kopplung mit Raytatouille und Field Trac
 ## Bauen und testen
 
 ```bash
-pip install -r requirements-dev.txt && pip install -e .
+pip install -r requirements-dev.txt && pip install -e .   # baut auch den C++-Kern bwpm._core
 pytest
 ruff check . && ruff format --check . && mypy
 ```
+
+Ohne Compiler: `pip install -e . -C cmake.define.BWPM_BUILD_CORE=OFF` (nur Python-Referenz).
+C++ direkt: `cmake --preset cpu-release && cmake --build --preset cpu-release`; CUDA-Preset
+`cuda-release` (sm_89) ab B4d. Der Kern muss die Sollwertdateien unter `reference/` treffen.
 
 Vor jedem PR müssen lokal grün sein: pytest, ruff (check und format), mypy (strict). Die CI
 testet zusätzlich Python 3.10 und Windows. Teure Referenzrechnungen (> 5 s) bekommen den Marker

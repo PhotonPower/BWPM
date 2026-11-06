@@ -43,6 +43,7 @@ Kern aus B4.
 | E4 | Brechzahlstufen aus einer Geometrie (#3) | Pixelmittelpunkt als Standard, Flächenanteil als Option für dielektrische Übergänge (2026-11-05) |
 | E5 | Grenzen aus B1/B2 (#8) | Gültigkeitsgrenze festhalten: Reflexe quantitativ nur an z-senkrechten Flächen, an gekippten Flächen nur Richtung, Fokuslage und Phase; gefangene Wellen konvergieren nicht. Gegenvergleich mit hp-FEM später, Abhilfe nur bei Bedarf (2026-11-05) |
 | E6 | Fusionspilot vor B3 | in 2D vorgezogen, mit `fieldtracing` als optionaler Abhängigkeit (Extra `fusion`, Commit festgelegt) (2026-11-05) |
+| E7 | Aufbau des C++/CUDA-Kerns (#16) | D1–D8 aus `docs/b4-entwurf.md`: ein Paket mit optionalem `bwpm._core`, CMake-Presets und scikit-build-core, pybind11, pocketfft/cuFFT, complex128, T/R im GPU-Kernel, OpenMP, CUDA ≥ 12.6 sm_89 (2026-11-05) |
 
 ## Risiken
 

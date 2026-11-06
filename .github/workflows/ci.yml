@@ -41,3 +41,17 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: pip install -r requirements-dev.txt && pip install -e .
       - run: pytest -q
+        env:
+          BWPM_REQUIRE_CORE: "1"  # the C++ core must be built here (decision E7)
+
+  pure:
+    name: pytest without the C++ core (Python reference only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt && pip install -e . -C cmake.define.BWPM_BUILD_CORE=OFF
+      - run: pytest -q
