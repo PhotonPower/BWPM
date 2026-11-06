@@ -30,3 +30,5 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B3: BWPM in 3D (`bwpm.volume3d`: `Grid3D`, `Bidirectional3D`, `absorbing_mask_2d`,
   `memory_estimate`) mit Reflexspeicher nur an Grenzflächenpixeln; K10–K12; Messskript
   `experiments/b3_scaling.py` für den Server. Streifende Wellen (k_z = 0) regularisiert.
+- Messlauf B3 eingetragen (3D-Strehl 0,997, Laufzeit und Speicher); `Bidirectional3D(workers=…)`
+  mit `scipy.fft` für mehrere Kerne; Speichermodell um die Materialkennungen ergänzt.

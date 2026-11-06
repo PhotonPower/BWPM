@@ -137,6 +137,34 @@ geprüften Stapeln bis 300 Iterationen nicht auf. **Folge:** Iterationen begrenz
 nutzt 1–10) und am Energieresiduum abbrechen; für viele Iterationen wäre ein Filter der gefangenen
 Anteile nötig.
 
+## Messlauf B3 (Rechner des Maintainers, 2026-11-05)
+
+`experiments/b3_scaling.py`, Faserfacette mit Index-Matching-Kappe in 3D (Richards-Wolf-Spektrum,
+NA 0,4, x-polarisiert, Kern rund mit 2 µm), Fenster 96 µm, 2 Iterationen, NumPy-FFT auf einem Kern
+(vor der Option `--workers`). Speichermodell nachträglich mit den Materialkennungen
+(1 B je Gitterpunkt):
+
+| Abtastung | Gitter | Laufzeit | Speicher gemessen | Modell (mit Kennungen) | gespeicherte Reflexwerte | Rückreflex | Strehl auf der Facette | bester Fokus |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| λ/(2,5 n) | 572² × 506 | 51 min | 0,94 GB | 0,86 GB | 1,31·10⁶ (2 Ebenen) | 4,185 % | 0,99694 | +0,26 µm |
+| λ/(3,5 n) | 800² × 708 | 2 h 26 min | 2,04 GB | 1,80 GB | 2,56·10⁶ (2 Ebenen) | 4,180 % | 0,99695 | +0,12 µm |
+
+**Befund:**
+
+1. Rückreflex und Strehl-Verhältnis sind konvergiert (Änderung in der 5. Stelle). Der 3D-Strehl
+   0,997 gleicht dem 2D-Wert (K6, 0,9972); der Unterschied zu 0,97 in wende2023 ist kein
+   Dimensionseffekt (vermutlich die Definition, `docs/pilot-imc-2d.md`).
+2. Die Laufzeit wächst etwa linear mit der Zahl der Gitterpunkte (Faktor 2,9 bei 2,7-mal so vielen
+   Punkten); λ/(5 n) wie in der Quelle (≈ 1142² × 1012) bräuchte auf einem Kern ≈ 7 h. Der Lauf
+   wurde deshalb abgebrochen. Etwa 3 s je Ebene und Durchlauf bei 800² – die FFTs je Brechzahlpaar
+   dominieren; B4 bringt sie nach C++/CUDA, `--workers -1` nutzt bis dahin alle Kerne.
+3. Die Reflexe liegen nur an Kappenoberfläche und Facette: zwei volle Ebenen statt N_z, also
+   < 1 % des Speichers der Quelle für die Reflexe.
+4. Das Modell liegt mit den Kennungen bei 88–91 % des gemessenen Spitzenspeichers; der Rest sind
+   temporäre Arrays und der Python-Prozess.
+
+Offen als Vergleich: derselbe Lauf ohne Kappe (`--bare`) bei λ/(2,5 n).
+
 ## K1: Grenzflächenmatrizen (B0)
 
 Messwerte und Fälle: `docs/spezifikation.md`, Abschnitt 3.

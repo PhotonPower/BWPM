@@ -124,6 +124,8 @@ def test_k12_equals_2d_and_sparse_equals_full() -> None:
     assert np.array_equal(sparse.transmitted, full.transmitted)
     assert np.array_equal(sparse.reflected, full.reflected)
     assert 0 < sparse.stored_values < full.stored_values / 5
+    threaded = Bidirectional3D(GRID, indices, labels3, 1.0, workers=-1).run(field3, iterations=2)
+    assert np.max(np.abs(threaded.transmitted - sparse.transmitted)) < 1e-14
 
 
 def test_mask_and_memory_model() -> None:

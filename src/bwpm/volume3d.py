@@ -19,6 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
+import scipy.fft as sfft
 
 from bwpm._types import ComplexArray, FloatArray, IntArray
 from bwpm.interface import longitudinal_wavenumber, reflection_matrix, transmission_matrix
@@ -103,6 +104,8 @@ class Bidirectional3D:
         index_before: medium of the input field.
         mask: absorbing mask (ny, nx) applied after every transmission step, or None.
         sparse: keep reflection sources only at interface pixels (default) or as full planes.
+        workers: threads for the FFTs (scipy.fft); None = one thread, -1 = all cores. The result
+            does not depend on it beyond rounding.
     """
 
     grid: Grid3D
@@ -111,6 +114,7 @@ class Bidirectional3D:
     index_before: complex
     mask: FloatArray | None = None
     sparse: bool = True
+    workers: int | None = None
     _cache: dict[tuple[str, complex, complex], ComplexArray] = field(
         default_factory=dict, repr=False
     )
@@ -154,7 +158,7 @@ class Bidirectional3D:
     def _apply(
         self, kind: str, field_in: ComplexArray, labels_r: IntArray, labels_s: IntArray
     ) -> ComplexArray:
-        spectrum = np.fft.fft2(field_in, axes=(0, 1))
+        spectrum = sfft.fft2(field_in, axes=(0, 1), workers=self.workers)
         out = np.zeros_like(spectrum)
         pairs = np.unique(np.stack([labels_r.ravel(), labels_s.ravel()], axis=1), axis=0)
         for r, s in pairs:
@@ -163,7 +167,9 @@ class Bidirectional3D:
                 continue
             weight = (labels_r == r) & (labels_s == s)
             m = self._matrix(kind, ir, is_)
-            values = np.fft.ifft2(np.einsum("...ij,...j->...i", m, spectrum), axes=(0, 1))
+            values = sfft.ifft2(
+                np.einsum("...ij,...j->...i", m, spectrum), axes=(0, 1), workers=self.workers
+            )
             out[weight] = values[weight]
         if self.mask is not None and kind.endswith("_t"):
             out = out * self.mask[..., None]
@@ -248,12 +254,26 @@ class Bidirectional3D:
         return Result3D(transmitted, reflected, planes, stored)
 
 
-def memory_estimate(nx: int, ny: int, interface_pixels: int, pairs: int, kinds: int = 4) -> int:
-    """Rough peak memory in bytes: cached operators, a few working planes, sparse sources.
+def memory_estimate(
+    nx: int,
+    ny: int,
+    interface_pixels: int,
+    pairs: int,
+    kinds: int = 4,
+    nz: int = 0,
+    label_bytes: int = 1,
+) -> int:
+    """Rough peak memory in bytes: operators, working planes, sparse sources and material labels.
 
     Operators: kinds × pairs × nx·ny 2×2 complex matrices (64 B per pixel each); working fields:
     about 8 planes of nx·ny 2-vectors (32 B per pixel); sources: 2 × interface_pixels × (32 B
-    values + 8 B index).
+    values + 8 B index); labels: nz·nx·ny × label_bytes (missing before the B3 measurements,
+    which showed ≈ 35 % more than the model without it).
     """
     plane = nx * ny
-    return int(kinds * pairs * plane * 64 + 8 * plane * 32 + 2 * interface_pixels * 40)
+    return int(
+        kinds * pairs * plane * 64
+        + 8 * plane * 32
+        + 2 * interface_pixels * 40
+        + nz * plane * label_bytes
+    )
