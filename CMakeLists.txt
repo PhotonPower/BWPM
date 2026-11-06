@@ -4,6 +4,7 @@ project(BWPM VERSION 0.1.0 DESCRIPTION "Fast bidirectional vector wave propagati
 option(BWPM_BUILD_CORE "Build the compiled module bwpm._core" ON)
 option(BWPM_ENABLE_CUDA "Build the CUDA backend (RTX 6000 Ada, sm_89), stage B4d" OFF)
 option(BWPM_CUFFT_STATIC "Link cuFFT statically (larger module, no run-time library path needed)" OFF)
+option(BWPM_STATIC_LIBSTDCXX "Link libstdc++ and libgcc statically into _core (GCC; for conda Pythons with an old libstdc++)" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -77,6 +78,9 @@ if(SKBUILD)
                                              INSTALL_RPATH "${BWPM_CUDA_RPATH}"
                                              INSTALL_RPATH_USE_LINK_PATH ON)
     endif()
+  endif()
+  if(BWPM_STATIC_LIBSTDCXX)
+    target_link_options(_core PRIVATE -static-libstdc++ -static-libgcc)
   endif()
   install(TARGETS _core LIBRARY DESTINATION bwpm)
 endif()
