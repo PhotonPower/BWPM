@@ -5,6 +5,7 @@
 #include <pybind11/stl.h>
 
 #include <algorithm>
+#include <memory>
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -12,6 +13,9 @@
 
 #include "bwpm/interface.hpp"
 #include "bwpm/solver.hpp"
+#ifdef BWPM_HAVE_CUDA
+#include "bwpm/solver_cuda.hpp"
+#endif
 
 namespace py = pybind11;
 using bwpm::cplx;
@@ -53,6 +57,55 @@ py::array_t<cplx> as_array(const std::vector<cplx>& v, std::vector<py::ssize_t> 
   return out;
 }
 
+template <class S>
+py::dict run_solver(S& self, const C128& field, int iterations, std::vector<std::size_t> keep) {
+  if (field.ndim() != 3 || field.shape(2) != 2)
+    throw std::invalid_argument("field must have shape (ny, nx, 2)");
+  const std::vector<py::ssize_t> shape{field.shape(0), field.shape(1), 2};
+  std::vector<cplx> in(field.data(), field.data() + field.size());
+  bwpm::RunResult r;
+  {
+    py::gil_scoped_release release;
+    r = self.run(in, iterations, keep);
+  }
+  py::dict out;
+  out["transmitted"] = as_array(r.transmitted, shape);
+  out["reflected"] = as_array(r.reflected, shape);
+  py::list ti, ri;
+  for (const auto& v : r.transmitted_iter) ti.append(as_array(v, shape));
+  for (const auto& v : r.reflected_iter) ri.append(as_array(v, shape));
+  out["transmitted_iter"] = ti;
+  out["reflected_iter"] = ri;
+  py::dict fw, bw;
+  for (const auto& [p, v] : r.forward) fw[py::int_(p)] = as_array(v, shape);
+  for (const auto& [p, v] : r.backward) bw[py::int_(p)] = as_array(v, shape);
+  out["forward"] = fw;
+  out["backward"] = bw;
+  out["stored_values"] = r.stored_values;
+  return out;
+}
+
+struct SolverInput {
+  bwpm::Grid grid;
+  std::vector<cplx> indices;
+  std::vector<std::int32_t> labels;
+  std::size_t nz;
+  std::vector<double> mask;
+};
+
+SolverInput solver_input(std::size_t ny, std::size_t nx, double dy, double dx, double dz,
+                         double k0, const C128& indices, const I32& labels,
+                         const std::optional<py::array_t<double, py::array::c_style | py::array::forcecast>>& mask) {
+  if (labels.ndim() != 3) throw std::invalid_argument("labels must have shape (nz, ny, nx)");
+  SolverInput in{{ny, nx, dy, dx, dz, k0},
+                 std::vector<cplx>(indices.data(), indices.data() + indices.size()),
+                 std::vector<std::int32_t>(labels.data(), labels.data() + labels.size()),
+                 static_cast<std::size_t>(labels.shape(0)),
+                 {}};
+  if (mask) in.mask.assign(mask->data(), mask->data() + mask->size());
+  return in;
+}
+
 }  // namespace
 
 PYBIND11_MODULE(_core, m) {
@@ -71,53 +124,43 @@ PYBIND11_MODULE(_core, m) {
       },
       py::arg("k_x"), py::arg("k_y"), py::arg("index_in"), py::arg("index_out"), py::arg("k0"),
       "R of wende2023 eqs. (8), (9) without propagation factor, shape (..., 2, 2).");
+  using F64Opt = std::optional<py::array_t<double, py::array::c_style | py::array::forcecast>>;
   py::class_<bwpm::Solver>(m, "Solver",
                            "FPWPM/BWPM on the CPU in 2D (nx = 1) and 3D (stage B4c).")
       .def(py::init([](std::size_t ny, std::size_t nx, double dy, double dx, double dz, double k0,
                        const C128& indices, const I32& labels, cplx index_before,
-                       std::optional<py::array_t<double, py::array::c_style | py::array::forcecast>> mask,
-                       int threads) {
-             if (labels.ndim() != 3) throw std::invalid_argument("labels must have shape (nz, ny, nx)");
-             std::vector<cplx> idx(indices.data(), indices.data() + indices.size());
-             std::vector<std::int32_t> lab(labels.data(), labels.data() + labels.size());
-             std::vector<double> msk;
-             if (mask) msk.assign(mask->data(), mask->data() + mask->size());
-             return bwpm::Solver({ny, nx, dy, dx, dz, k0}, std::move(idx), std::move(lab),
-                                 static_cast<std::size_t>(labels.shape(0)), index_before,
-                                 std::move(msk), threads);
+                       const F64Opt& mask, int threads) {
+             SolverInput in = solver_input(ny, nx, dy, dx, dz, k0, indices, labels, mask);
+             return bwpm::Solver(in.grid, std::move(in.indices), std::move(in.labels), in.nz,
+                                 index_before, std::move(in.mask), threads);
            }),
            py::arg("ny"), py::arg("nx"), py::arg("dy"), py::arg("dx"), py::arg("dz"), py::arg("k0"),
            py::arg("indices"), py::arg("labels"), py::arg("index_before"), py::arg("mask"),
            py::arg("threads") = 1)
-      .def(
-          "run",
-          [](bwpm::Solver& self, const C128& field, int iterations, std::vector<std::size_t> keep) {
-            if (field.ndim() != 3 || field.shape(2) != 2)
-              throw std::invalid_argument("field must have shape (ny, nx, 2)");
-            const std::vector<py::ssize_t> shape{field.shape(0), field.shape(1), 2};
-            std::vector<cplx> in(field.data(), field.data() + field.size());
-            bwpm::RunResult r;
-            {
-              py::gil_scoped_release release;
-              r = self.run(in, iterations, keep);
-            }
-            py::dict out;
-            out["transmitted"] = as_array(r.transmitted, shape);
-            out["reflected"] = as_array(r.reflected, shape);
-            py::list ti, ri;
-            for (const auto& v : r.transmitted_iter) ti.append(as_array(v, shape));
-            for (const auto& v : r.reflected_iter) ri.append(as_array(v, shape));
-            out["transmitted_iter"] = ti;
-            out["reflected_iter"] = ri;
-            py::dict fw, bw;
-            for (const auto& [p, v] : r.forward) fw[py::int_(p)] = as_array(v, shape);
-            for (const auto& [p, v] : r.backward) bw[py::int_(p)] = as_array(v, shape);
-            out["forward"] = fw;
-            out["backward"] = bw;
-            out["stored_values"] = r.stored_values;
-            return out;
-          },
-          py::arg("field"), py::arg("iterations"), py::arg("keep") = std::vector<std::size_t>{});
+      .def("run", &run_solver<bwpm::Solver>, py::arg("field"), py::arg("iterations"),
+           py::arg("keep") = std::vector<std::size_t>{});
+
+#ifdef BWPM_HAVE_CUDA
+  m.attr("HAS_CUDA") = true;
+  m.def("cuda_device_count", &bwpm::cuda_device_count);
+  py::class_<bwpm::CudaSolver>(m, "CudaSolver", "FPWPM/BWPM on the GPU (stage B4d).")
+      .def(py::init([](std::size_t ny, std::size_t nx, double dy, double dx, double dz, double k0,
+                       const C128& indices, const I32& labels, cplx index_before,
+                       const F64Opt& mask, int device) {
+             SolverInput in = solver_input(ny, nx, dy, dx, dz, k0, indices, labels, mask);
+             return std::make_unique<bwpm::CudaSolver>(in.grid, std::move(in.indices),
+                                                       std::move(in.labels), in.nz, index_before,
+                                                       std::move(in.mask), device);
+           }),
+           py::arg("ny"), py::arg("nx"), py::arg("dy"), py::arg("dx"), py::arg("dz"), py::arg("k0"),
+           py::arg("indices"), py::arg("labels"), py::arg("index_before"), py::arg("mask"),
+           py::arg("device") = 0)
+      .def("run", &run_solver<bwpm::CudaSolver>, py::arg("field"), py::arg("iterations"),
+           py::arg("keep") = std::vector<std::size_t>{});
+#else
+  m.attr("HAS_CUDA") = false;
+  m.def("cuda_device_count", []() { return 0; });
+#endif
   m.def("longitudinal_wavenumber", &bwpm::longitudinal_wavenumber, py::arg("index"),
         py::arg("k0"), py::arg("k_perp_sq"));
 }

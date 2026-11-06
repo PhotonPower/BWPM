@@ -13,6 +13,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K12 | 3D in x homogen = 2D; dünn gespeicherte Reflexe = voll gespeicherte | 2D-BWPM; volle Speicherung | < 1e−12 bzw. bitgleich, Speicher < 1/5 | B3 | ✅ | `test_volume3d.py` |
 | K13 | C++-Kern: Grenzflächenmatrizen (`bwpm._core`) | Sollwertdatei `interface_matrices`; Python-Referenz auf einem FFT-Gitter mit k⊥ = 0, streifend, evaneszent | Dateitoleranz bzw. < 1e−13 | B4b | ✅ | `test_core_interface.py` |
 | K14 | C++-Kern: FPWPM/BWPM in 2D und 3D (`bwpm._core.Solver`, `bwpm.fast.run_2d/run_3d`) | alle Sollwertdateien unter `reference/`; Python-Referenz auf zufälligen 3D-Volumina (vier Materialien inkl. Silber, mit und ohne Maske, dx ≠ dy) | Dateitoleranz bzw. < 1e−12 des Eingangs; gespeicherte Reflexwerte gleich; Threads ändern nichts | B4c | ✅ | `test_core_solver.py` |
+| K15 | CUDA-Kern (`bwpm._core.CudaSolver`, `backend="cuda"`) | alle Sollwertdateien; CPU-Kern auf zufälligen 3D-Volumina | rel 1e−10, abs 1e−11 des Maximums; CUDA gegen CPU ≈ 1e−16 | B4d | ◐ (6/7 auf dem Server, Rest durch die Regel für streifenden Einfall behoben, Bestätigung offen) | `test_core_cuda.py` |
 | K7 | Randzone der absorbierenden Maske | gleiche Rechnung im vierfach breiten Fenster ohne Maske | Fehler im Inneren < 1e−5 bei Randzone ≥ 20 λ, Ordnung 8 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K8 | gekippter Glaskeil (Flächenwinkel 0–60°) | Snellius und Fresnel an der gekippten Fläche | Richtung < 0,02° bis 45°; Leistung weicht bis 7 % ab (Grenze des Verfahrens); R folgt in B2 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K5 | Parabolspiegel (Silber) | Brennweite f′ (Parabel ohne Aberration) | Fokus 49,87 µm vom Scheitel bei f′ = 50 µm (wende2023: 49,85 µm), stabil bei Verfeinerung | B2 | ✅ (slow) | `test_mirror.py` |
@@ -188,6 +189,31 @@ Laufzeit (Container, ein Kern, Faserfacette mit Kappe in 3D, 214² × 303, eine 
 NumPy 16,1 s, C++-Kern 4,4 s (Faktor 3,7), gleiche Ergebnisse (Strehl 0,99310, Rückreflex 4,076 %).
 Mit OpenMP und pocketfft-Threads skaliert der Kern zusätzlich mit der Kernzahl; Messung auf dem
 Server mit `experiments/b3_scaling.py --core`.
+
+## K15: CUDA-Kern (B4d, Rechner des Maintainers, 2026-11-06)
+
+Umgebung: RTX 6000 Ada (48 GB), nvcc 12.9 (HPC SDK), GCC 14.3 bzw. gcc-toolset-15 als
+Host-Compiler, Python 3.13 (conda). Build mit RPATH auf cuFFT; wegen der älteren libstdc++ von
+conda mit `BWPM_STATIC_LIBSTDCXX=ON`.
+
+Tests: 6 von 7 grün; `bwpm3d_tilted` wich um 10⁻⁹ ab – ebenso im CPU-Kern auf dem Server, CUDA
+gegen CPU ≈ 10⁻¹⁶. Ursache war das Rundungsrauschen an streifenden Gitterpunkten (#25), jetzt
+durch eine einheitliche Regel in Python, C++ und CUDA behoben (Spezifikation §3, Punkt 5).
+
+Messung (Faserfacette, Fenster 96 µm, 2 Iterationen):
+
+| Abtastung | Gitter | NumPy (1 Kern) | CPU-Kern (32 Kerne) | CUDA | Host / GPU-Speicher (CUDA) | Strehl | Rückreflex |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| λ/(2,5 n) | 572² × 506 | 51 min | 99 s | 23 s | 1,6 GB / ≤ 1,6 GB | 0,99694 | 4,185 % |
+| λ/(3,5 n) | 800² × 708 | 2 h 26 min | – | 59 s | 4,1 GB | 0,99695 | 4,180 % |
+| λ/(5 n) | 1142² × 1011 | (≈ 7 h, nicht gerechnet) | – | 240 s | 11,3 GB | 0,99691 | 4,170 % |
+| ohne Kappe, λ/(2,5 n) | 572² × 208 | 19,6 min | – | 9,9 s | 0,7 GB / 1,3 GB | – | 3,925 % |
+
+CUDA ist 130–150-mal schneller als NumPy und 4,3-mal schneller als der CPU-Kern auf 32 Kernen;
+bei λ/(5 n) etwa 0,06 s je Ebene und Durchlauf – das Ziel aus `docs/b4-entwurf.md` (< 0,1 s) ist
+ohne Bündelung der Paare erreicht. Strehl und Rückreflex wie die Referenz; bei λ/(5 n) Strehl
+0,99691 (Konvergenz in der 5. Stelle). Der Host-Speicher wächst mit dem Kennungsfeld (int32 im
+Kern, 4 B je Gitterpunkt), die GPU braucht wenig, weil T und R im Kernel berechnet werden.
 
 ## K1: Grenzflächenmatrizen (B0)
 

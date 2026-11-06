@@ -6,7 +6,11 @@
 namespace bwpm {
 
 cplx longitudinal_wavenumber(cplx index, double k0, double k_perp_sq) {
-  cplx kz = std::sqrt(index * index * (k0 * k0) - k_perp_sq);
+  const cplx n2k2 = index * index * (k0 * k0);
+  cplx q = n2k2 - k_perp_sq;
+  // grazing rule (#25), identical in Python and CUDA: rounding noise near |k⊥| = ñk₀ -> 0
+  if (std::abs(q) <= kGrazingTolerance * std::abs(n2k2)) q = 0.0;
+  cplx kz = std::sqrt(q);
   if (kz.imag() < 0.0 || (kz.imag() == 0.0 && kz.real() < 0.0)) kz = -kz;
   const double tiny = 1e-12 * k0;  // exactly grazing: avoid 0/0 in Fresnel (as the Python code)
   if (std::abs(kz) < tiny) kz = cplx(0.0, tiny);

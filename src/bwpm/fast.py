@@ -7,11 +7,14 @@ core the reference is used. `CORE_AVAILABLE` tells which one is active.
 - `run_2d(propagator, field, iterations, keep)`: 2D FPWPM (iterations = 0) or BWPM, returns
   `bwpm.bidirectional.BidirectionalResult` like `Bidirectional2D.run` (B4c).
 - `run_3d(solver, field, iterations, keep)`: like `Bidirectional3D.run`, returns `Result3D` (B4c).
+
+`backend`: "auto" (CUDA if built and a device is present, else CPU core), "cpu" or "cuda" (B4d).
 """
 
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import numpy as np
 
@@ -41,12 +44,32 @@ def _threads(threads: int | None) -> int:
     return threads if threads and threads > 0 else (os.cpu_count() or 1)
 
 
+def cuda_available() -> bool:
+    """True if the core was built with CUDA (BWPM_ENABLE_CUDA=ON) and a device is present."""
+    return bool(_core is not None and _core.HAS_CUDA and _core.cuda_device_count() > 0)
+
+
+def _solver(backend: str, threads: int | None, device: int, *args: object) -> object:
+    """CPU or CUDA solver of the core with the common constructor arguments."""
+    assert _core is not None
+    if backend not in ("auto", "cpu", "cuda"):
+        raise ValueError("backend must be 'auto', 'cpu' or 'cuda'")
+    use_cuda = backend == "cuda" or (backend == "auto" and cuda_available())
+    if use_cuda:
+        if not cuda_available():
+            raise RuntimeError("CUDA backend requested but not built or no device present")
+        return _core.CudaSolver(*args, device)
+    return _core.Solver(*args, _threads(threads))
+
+
 def run_2d(
     propagator: Propagator2D,
     field: ComplexArray,
     iterations: int = 3,
     keep: bool = False,
     threads: int | None = None,
+    backend: str = "auto",
+    device: int = 0,
 ) -> BidirectionalResult:
     """2D run with the core (iterations = 0: forward FPWPM only), else with the reference."""
     g = propagator.grid
@@ -61,7 +84,10 @@ def run_2d(
     labels = np.asarray(propagator.labels, dtype=np.int32)[:, :, None]
     nz = labels.shape[0]
     mask = None if propagator.mask is None else np.asarray(propagator.mask)[:, None]
-    solver = _core.Solver(
+    solver: Any = _solver(
+        backend,
+        threads,
+        device,
         g.ny,
         1,
         g.dy,
@@ -72,7 +98,6 @@ def run_2d(
         labels,
         complex(propagator.index_before),
         mask,
-        _threads(threads),
     )
     out = solver.run(np.asarray(field)[:, None, :], iterations, list(range(nz + 1)) if keep else [])
     forward = backward = None
@@ -103,12 +128,17 @@ def run_3d(
     iterations: int = 1,
     keep: tuple[int, ...] = (),
     threads: int | None = None,
+    backend: str = "auto",
+    device: int = 0,
 ) -> Result3D:
     """3D run with the core, else with the reference (`Bidirectional3D.run`)."""
     if _core is None:
         return solver.run(field, iterations, keep)
     g = solver.grid
-    core = _core.Solver(
+    core: Any = _solver(
+        backend,
+        threads,
+        device,
         g.ny,
         g.nx,
         g.dy,
@@ -119,7 +149,6 @@ def run_3d(
         np.asarray(solver.labels, dtype=np.int32),
         complex(solver.index_before),
         solver.mask,
-        _threads(threads),
     )
     out = core.run(np.asarray(field), iterations, list(keep))
     zero = np.zeros_like(out["transmitted"])
@@ -127,4 +156,11 @@ def run_3d(
     return Result3D(out["transmitted"], out["reflected"], planes, int(out["stored_values"]))
 
 
-__all__ = ["CORE_AVAILABLE", "reflection_matrix", "run_2d", "run_3d", "transmission_matrix"]
+__all__ = [
+    "CORE_AVAILABLE",
+    "cuda_available",
+    "reflection_matrix",
+    "run_2d",
+    "run_3d",
+    "transmission_matrix",
+]

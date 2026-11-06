@@ -70,6 +70,20 @@ def volume(grid: Grid3D, with_imc: bool) -> tuple[list[complex], np.ndarray, flo
     return [1.0 + 0j, N_IMC + 0j, N_CORE + 0j, N_CLAD + 0j], labels, z_in
 
 
+def count_pairs(labels: np.ndarray) -> int:  # type: ignore[type-arg]
+    """Number of distinct (label before, label after) pairs between neighbouring slabs.
+
+    Plane by plane with bincount (O(N), little memory); np.unique(axis=0) over all ~10⁸–10⁹
+    pairs at once took > 40 min on the server (report in PR #23).
+    """
+    m = int(labels.max()) + 1
+    seen = np.zeros(m * m, dtype=bool)
+    for j in range(labels.shape[0] - 1):
+        code = labels[j].astype(np.int64).ravel() * m + labels[j + 1].astype(np.int64).ravel()
+        seen |= np.bincount(code, minlength=m * m).astype(bool)
+    return int(seen.sum())
+
+
 def strehl(spectrum: np.ndarray, grid: Grid3D, k: float) -> tuple[float, float]:  # type: ignore[type-arg]
     kx, ky = grid.k_grid()
     support = np.sqrt(kx * kx + ky * ky) <= NA * grid.k0
@@ -89,6 +103,7 @@ def run(
     with_imc: bool,
     workers: int,
     core: bool = False,
+    backend: str = "auto",
 ) -> dict[str, float]:
     d = LAMBDA_UM * 1e-3 / (fraction * N_IMC)
     n = round(window_um * 1e-3 / d)
@@ -109,7 +124,12 @@ def run(
     start = time.perf_counter()
     if core:
         res = fast.run_3d(
-            solver, field, iterations, (plane,), threads=workers if workers > 0 else None
+            solver,
+            field,
+            iterations,
+            (plane,),
+            threads=workers if workers > 0 else None,
+            backend=backend,
         )
     else:
         res = solver.run(field, iterations=iterations, keep=(plane,))
@@ -122,7 +142,7 @@ def run(
     s, best = (
         strehl(np.fft.fft2(forward) * shift, grid, grid.k0 * N_IMC) if with_imc else (0.0, 0.0)
     )
-    pairs = len(np.unique(np.stack([labels[:-1].ravel(), labels[1:].ravel()], 1), axis=0))
+    pairs = count_pairs(labels)
     return {
         "fraction": fraction,
         "n": n,
@@ -135,6 +155,9 @@ def run(
         / 2**20,
         "workers": float(workers),
         "core": float(core and fast.CORE_AVAILABLE),
+        "cuda": float(  # backend actually used (run_3d raises if CUDA was requested but missing)
+            core and backend != "cpu" and fast.cuda_available()
+        ),
         "reflected_ratio": p_r / p_in,
         "strehl": s,
         "best_focus_um": (best - 1e-3) * 1e3,
@@ -150,6 +173,7 @@ def main() -> None:
     parser.add_argument(
         "--core", action="store_true", help="C++ core (bwpm._core) instead of NumPy"
     )
+    parser.add_argument("--backend", default="auto", choices=["auto", "cpu", "cuda"])
     parser.add_argument(
         "--workers", type=int, default=-1, help="FFT threads (scipy.fft), -1 = all cores"
     )
@@ -158,10 +182,14 @@ def main() -> None:
     out.mkdir(exist_ok=True)
     results = []
     for f in args.fractions:
-        r = run(f, args.window_um, args.iterations, not args.bare, args.workers, args.core)
+        r = run(
+            f, args.window_um, args.iterations, not args.bare, args.workers, args.core, args.backend
+        )
         print(json.dumps(r), flush=True)
         results.append(r)
-    name = f"b3_scaling_{'bare' if args.bare else 'imc'}{'_core' if args.core else ''}.json"
+    name = (
+        f"b3_scaling_{'bare' if args.bare else 'imc'}{'_' + args.backend if args.core else ''}.json"
+    )
     (out / name).write_text(json.dumps({"argv": sys.argv[1:], "results": results}, indent=2))
 
 
