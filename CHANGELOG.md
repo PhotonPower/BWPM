@@ -42,3 +42,5 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   mit dünnem Reflexspeicher; `bwpm.fast.run_2d`/`run_3d`; Messskript `--core`. Trifft alle
   Sollwertdateien; einkernig 3,7-mal schneller als NumPy. pocketfft (BSD-3) unter
   `cpp/third_party/pocketfft`.
+- Messlauf ohne Kappe eingetragen (3D-Rückreflex der blanken Facette 3,93 %; Threads in NumPy
+  bringen kaum Gewinn).
