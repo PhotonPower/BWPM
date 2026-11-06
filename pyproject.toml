@@ -31,6 +31,9 @@ sdist.exclude = ["build", "experiments/out", ".github"]
 
 [tool.scikit-build.cmake.define]
 BWPM_BUILD_CORE = "ON"
+# CUDA backend (B4d) on the large machine:
+#   pip install -e . -C cmake.define.BWPM_ENABLE_CUDA=ON
+BWPM_ENABLE_CUDA = "OFF"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

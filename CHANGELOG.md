@@ -44,3 +44,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   `cpp/third_party/pocketfft`.
 - Messlauf ohne Kappe eingetragen (3D-Rückreflex der blanken Facette 3,93 %; Threads in NumPy
   bringen kaum Gewinn).
+- B4d (erste Fassung, Test auf dem Server offen): CUDA-Kern `bwpm._core.CudaSolver` (cuFFT,
+  T und R mit Ausbreitungsfaktor im Kernel, dünner Reflexspeicher auf dem Gerät), CMake-Option
+  `BWPM_ENABLE_CUDA`, Fassade `backend="auto"|"cpu"|"cuda"`, Tests K15, Messskript `--backend`.

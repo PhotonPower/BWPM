@@ -82,7 +82,7 @@ Für den Kern und den Adapter, gegen unabhängige Werte:
 | B4a | Sollwertdateien aus der Python-Referenz (`tools/export_reference.py`, `reference/`) | Dateien aktuell, Rundreise, unabhängige Werte (✅) |
 | B4b | Build-Gerüst (CMake, Presets, scikit-build-core, pybind11, CI mit Compiler), C++ `interface` (T, R) | `interface_matrices` in Toleranz (✅, K13) |
 | B4c | CPU-Kern 2D/3D: Schritt, Reflexquellen, Iterationen, Maske (pocketfft, OpenMP) | alle Sollwertdateien; Laufzeit gegen NumPy (✅, K14) |
-| B4d | CUDA-Kern (cuFFT, T/R im Kernel, Batches) | Sollwertdateien in GPU-Toleranz; Messlauf IMC bei λ/(5 n) auf dem Server |
+| B4d | CUDA-Kern (cuFFT, T/R im Kernel, Batches) | Sollwertdateien in GPU-Toleranz; Messlauf IMC bei λ/(5 n) auf dem Server (Code geschrieben, Test auf dem Server offen) |
 | B4e | Adapter `bwpm.adapter` und Konformitätstests | Abschnitt 5 |
 
 ## 7. Risiken
@@ -92,3 +92,24 @@ Für den Kern und den Adapter, gegen unabhängige Werte:
 - **Batch-Speicher auf der GPU:** viele Paare in Faserebenen (Kern, Mantel, Kappe) vergrößern den
   Batch; Obergrenze und Aufteilung nach Speicher.
 - **Windows-Build:** MSVC und CUDA; FourierGrating zeigt, dass es geht (MinGW-Sonderweg dort).
+
+## 8. CUDA bauen und prüfen (B4d)
+
+Im Container gibt es keinen CUDA-Compiler; der Gerätecode wurde dort nur mit clang 18 gegen die
+Header von CUDA 12.9 übersetzt (Host- und Gerätecode ohne Fehler und Warnungen), nicht gelinkt
+und nicht ausgeführt. Auf dem Rechner des Maintainers:
+
+```bash
+pip install -e . -C cmake.define.BWPM_ENABLE_CUDA=ON      # nvcc ≥ 12.6 im PATH oder CUDACXX
+python -c "from bwpm import _core; print(_core.HAS_CUDA, _core.cuda_device_count())"
+BWPM_REQUIRE_CUDA=1 pytest tests/test_core_cuda.py -v
+python experiments/b3_scaling.py --fractions 2.5 3.5 5 --window-um 96 --iterations 2 --core --backend cuda
+```
+
+GCC 14 (AlmaLinux 10) wird von nvcc erst ab CUDA 12.8 unterstützt; mit älterem CUDA hilft
+`-C cmake.define.CMAKE_CUDA_FLAGS=-allow-unsupported-compiler` oder ein älterer Host-Compiler
+(`-C cmake.define.CMAKE_CUDA_HOST_COMPILER=...`).
+
+Erste Fassung: Paare einer Ebene nacheinander (je ein Kernel für Matrix × Spektrum mit T/R im
+Kernel, eine inverse cuFFT, ein Kernel für die Übernahme der Pixel); Kennungen je Ebene
+hochgeladen. Der Batch aller Paare einer Ebene folgt nach der ersten Messung.

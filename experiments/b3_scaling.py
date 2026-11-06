@@ -89,6 +89,7 @@ def run(
     with_imc: bool,
     workers: int,
     core: bool = False,
+    backend: str = "auto",
 ) -> dict[str, float]:
     d = LAMBDA_UM * 1e-3 / (fraction * N_IMC)
     n = round(window_um * 1e-3 / d)
@@ -135,6 +136,11 @@ def run(
         / 2**20,
         "workers": float(workers),
         "core": float(core and fast.CORE_AVAILABLE),
+        "cuda": float(
+            core
+            and fast.CORE_AVAILABLE
+            and (backend == "cuda" or (backend == "auto" and fast.cuda_available()))
+        ),
         "reflected_ratio": p_r / p_in,
         "strehl": s,
         "best_focus_um": (best - 1e-3) * 1e3,
@@ -158,10 +164,14 @@ def main() -> None:
     out.mkdir(exist_ok=True)
     results = []
     for f in args.fractions:
-        r = run(f, args.window_um, args.iterations, not args.bare, args.workers, args.core)
+        r = run(
+            f, args.window_um, args.iterations, not args.bare, args.workers, args.core, args.backend
+        )
         print(json.dumps(r), flush=True)
         results.append(r)
-    name = f"b3_scaling_{'bare' if args.bare else 'imc'}{'_core' if args.core else ''}.json"
+    name = (
+        f"b3_scaling_{'bare' if args.bare else 'imc'}{'_' + args.backend if args.core else ''}.json"
+    )
     (out / name).write_text(json.dumps({"argv": sys.argv[1:], "results": results}, indent=2))
 
 
