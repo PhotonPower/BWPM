@@ -110,7 +110,12 @@ def run(
     start = time.perf_counter()
     if core:
         res = fast.run_3d(
-            solver, field, iterations, (plane,), threads=workers if workers > 0 else None
+            solver,
+            field,
+            iterations,
+            (plane,),
+            threads=workers if workers > 0 else None,
+            backend=backend,
         )
     else:
         res = solver.run(field, iterations=iterations, keep=(plane,))
@@ -136,10 +141,8 @@ def run(
         / 2**20,
         "workers": float(workers),
         "core": float(core and fast.CORE_AVAILABLE),
-        "cuda": float(
-            core
-            and fast.CORE_AVAILABLE
-            and (backend == "cuda" or (backend == "auto" and fast.cuda_available()))
+        "cuda": float(  # backend actually used (run_3d raises if CUDA was requested but missing)
+            core and backend != "cpu" and fast.cuda_available()
         ),
         "reflected_ratio": p_r / p_in,
         "strehl": s,
@@ -156,6 +159,7 @@ def main() -> None:
     parser.add_argument(
         "--core", action="store_true", help="C++ core (bwpm._core) instead of NumPy"
     )
+    parser.add_argument("--backend", default="auto", choices=["auto", "cpu", "cuda"])
     parser.add_argument(
         "--workers", type=int, default=-1, help="FFT threads (scipy.fft), -1 = all cores"
     )
