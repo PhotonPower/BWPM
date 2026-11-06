@@ -13,7 +13,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K12 | 3D in x homogen = 2D; dünn gespeicherte Reflexe = voll gespeicherte | 2D-BWPM; volle Speicherung | < 1e−12 bzw. bitgleich, Speicher < 1/5 | B3 | ✅ | `test_volume3d.py` |
 | K13 | C++-Kern: Grenzflächenmatrizen (`bwpm._core`) | Sollwertdatei `interface_matrices`; Python-Referenz auf einem FFT-Gitter mit k⊥ = 0, streifend, evaneszent | Dateitoleranz bzw. < 1e−13 | B4b | ✅ | `test_core_interface.py` |
 | K14 | C++-Kern: FPWPM/BWPM in 2D und 3D (`bwpm._core.Solver`, `bwpm.fast.run_2d/run_3d`) | alle Sollwertdateien unter `reference/`; Python-Referenz auf zufälligen 3D-Volumina (vier Materialien inkl. Silber, mit und ohne Maske, dx ≠ dy) | Dateitoleranz bzw. < 1e−12 des Eingangs; gespeicherte Reflexwerte gleich; Threads ändern nichts | B4c | ✅ | `test_core_solver.py` |
-| K15 | CUDA-Kern (`bwpm._core.CudaSolver`, `backend="cuda"`) | alle Sollwertdateien; CPU-Kern auf zufälligen 3D-Volumina | rel 1e−10, abs 1e−11 des Maximums; CUDA gegen CPU ≈ 1e−16 | B4d | ◐ (6/7 auf dem Server, Rest durch die Regel für streifenden Einfall behoben, Bestätigung offen) | `test_core_cuda.py` |
+| K15 | CUDA-Kern (`bwpm._core.CudaSolver`, `backend="cuda"`) | alle Sollwertdateien; CPU-Kern auf zufälligen 3D-Volumina | rel 1e−10, abs 1e−11 des Maximums; CUDA gegen CPU ≈ 1e−16 | B4d | ✅ (Server, 2026-11-06) | `test_core_cuda.py` |
 | K7 | Randzone der absorbierenden Maske | gleiche Rechnung im vierfach breiten Fenster ohne Maske | Fehler im Inneren < 1e−5 bei Randzone ≥ 20 λ, Ordnung 8 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K8 | gekippter Glaskeil (Flächenwinkel 0–60°) | Snellius und Fresnel an der gekippten Fläche | Richtung < 0,02° bis 45°; Leistung weicht bis 7 % ab (Grenze des Verfahrens); R folgt in B2 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K5 | Parabolspiegel (Silber) | Brennweite f′ (Parabel ohne Aberration) | Fokus 49,87 µm vom Scheitel bei f′ = 50 µm (wende2023: 49,85 µm), stabil bei Verfeinerung | B2 | ✅ (slow) | `test_mirror.py` |
@@ -199,6 +199,13 @@ conda mit `BWPM_STATIC_LIBSTDCXX=ON`.
 Tests: 6 von 7 grün; `bwpm3d_tilted` wich um 10⁻⁹ ab – ebenso im CPU-Kern auf dem Server, CUDA
 gegen CPU ≈ 10⁻¹⁶. Ursache war das Rundungsrauschen an streifenden Gitterpunkten (#25), jetzt
 durch eine einheitliche Regel in Python, C++ und CUDA behoben (Spezifikation §3, Punkt 5).
+
+**Bestätigungslauf** (Commit `17fce34`): mit CUDA und gcc-toolset-15 alle Tests grün (124 gesamt;
+25 in den Kern- und CUDA-Tests, darunter die vier Tests aus #25 und der neue Test zur Regel);
+CPU-Kern ohne CUDA mit gcc-toolset-15 18/18. Mit dem System-GCC 14 lädt das Modul in der
+conda-Umgebung nicht (libstdc++ zu alt), dort ist die Regel nicht direkt geprüft; sie ist aber
+durch die Schwelle 10⁻¹² unabhängig von der Rundungsreihenfolge, und der Test
+`test_grazing_rule_is_independent_of_rounding` prüft genau das auf jeder Plattform.
 
 Messung (Faserfacette, Fenster 96 µm, 2 Iterationen):
 

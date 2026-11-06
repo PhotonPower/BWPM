@@ -82,7 +82,7 @@ Für den Kern und den Adapter, gegen unabhängige Werte:
 | B4a | Sollwertdateien aus der Python-Referenz (`tools/export_reference.py`, `reference/`) | Dateien aktuell, Rundreise, unabhängige Werte (✅) |
 | B4b | Build-Gerüst (CMake, Presets, scikit-build-core, pybind11, CI mit Compiler), C++ `interface` (T, R) | `interface_matrices` in Toleranz (✅, K13) |
 | B4c | CPU-Kern 2D/3D: Schritt, Reflexquellen, Iterationen, Maske (pocketfft, OpenMP) | alle Sollwertdateien; Laufzeit gegen NumPy (✅, K14) |
-| B4d | CUDA-Kern (cuFFT, T/R im Kernel, Batches) | Sollwertdateien in GPU-Toleranz; Messlauf IMC bei λ/(5 n) auf dem Server (gemessen: 240 s, K15) |
+| B4d | CUDA-Kern (cuFFT, T/R im Kernel, Batches) | Sollwertdateien in GPU-Toleranz; Messlauf IMC bei λ/(5 n) auf dem Server (gemessen: 240 s, K15; bestätigt ✅) |
 | B4e | Adapter `bwpm.adapter` und Konformitätstests | Abschnitt 5 |
 
 ## 7. Risiken
