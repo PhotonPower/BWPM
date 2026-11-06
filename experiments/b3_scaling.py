@@ -25,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 
+from bwpm import fast
 from bwpm.volume3d import Bidirectional3D, Grid3D, absorbing_mask_2d, memory_estimate
 
 LAMBDA_UM = 0.635
@@ -82,7 +83,12 @@ def strehl(spectrum: np.ndarray, grid: Grid3D, k: float) -> tuple[float, float]:
 
 
 def run(
-    fraction: float, window_um: float, iterations: int, with_imc: bool, workers: int
+    fraction: float,
+    window_um: float,
+    iterations: int,
+    with_imc: bool,
+    workers: int,
+    core: bool = False,
 ) -> dict[str, float]:
     d = LAMBDA_UM * 1e-3 / (fraction * N_IMC)
     n = round(window_um * 1e-3 / d)
@@ -101,7 +107,12 @@ def run(
         workers=workers,
     )
     start = time.perf_counter()
-    res = solver.run(field, iterations=iterations, keep=(plane,))
+    if core:
+        res = fast.run_3d(
+            solver, field, iterations, (plane,), threads=workers if workers > 0 else None
+        )
+    else:
+        res = solver.run(field, iterations=iterations, keep=(plane,))
     seconds = time.perf_counter() - start
     peak_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024  # Linux: kB
     p_in = float(np.sum(np.abs(field) ** 2))
@@ -123,6 +134,7 @@ def run(
         "model_mb": memory_estimate(n, n, res.stored_values // 2, pairs, nz=labels.shape[0])
         / 2**20,
         "workers": float(workers),
+        "core": float(core and fast.CORE_AVAILABLE),
         "reflected_ratio": p_r / p_in,
         "strehl": s,
         "best_focus_um": (best - 1e-3) * 1e3,
@@ -136,6 +148,9 @@ def main() -> None:
     parser.add_argument("--iterations", type=int, default=2)
     parser.add_argument("--bare", action="store_true", help="fibre without cap")
     parser.add_argument(
+        "--core", action="store_true", help="C++ core (bwpm._core) instead of NumPy"
+    )
+    parser.add_argument(
         "--workers", type=int, default=-1, help="FFT threads (scipy.fft), -1 = all cores"
     )
     args = parser.parse_args()
@@ -143,10 +158,10 @@ def main() -> None:
     out.mkdir(exist_ok=True)
     results = []
     for f in args.fractions:
-        r = run(f, args.window_um, args.iterations, not args.bare, args.workers)
+        r = run(f, args.window_um, args.iterations, not args.bare, args.workers, args.core)
         print(json.dumps(r), flush=True)
         results.append(r)
-    name = f"b3_scaling_{'bare' if args.bare else 'imc'}.json"
+    name = f"b3_scaling_{'bare' if args.bare else 'imc'}{'_core' if args.core else ''}.json"
     (out / name).write_text(json.dumps({"argv": sys.argv[1:], "results": results}, indent=2))
 
 

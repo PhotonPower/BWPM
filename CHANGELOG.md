@@ -38,3 +38,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B4b: Build mit scikit-build-core, CMake-Presets und pybind11 (E7); C++-Kern `bwpm._core` mit k_z,
   Fresnel-Koeffizienten und Grenzflächenmatrizen; Fassade `bwpm.fast`; CI baut den Kern unter
   Linux und Windows und prüft zusätzlich die Installation ohne Compiler.
+- B4c: CPU-Kern `bwpm._core.Solver` (C++20, pocketfft, OpenMP) für FPWPM und BWPM in 2D und 3D
+  mit dünnem Reflexspeicher; `bwpm.fast.run_2d`/`run_3d`; Messskript `--core`. Trifft alle
+  Sollwertdateien; einkernig 3,7-mal schneller als NumPy. pocketfft (BSD-3) unter
+  `cpp/third_party/pocketfft`.
