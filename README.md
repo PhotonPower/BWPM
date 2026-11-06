@@ -12,7 +12,7 @@ Kopplung mit Raytatouille und Field Tracing über Gitterfeld-Ports („Raytatoui
 gelten hier von Anfang an die Konventionen von Raytatouille.
 
 **Stand:** B0–B2 abgenommen (BWPM in 2D), Grenzen in E5, Fusionspilot in 2D
-([Bericht](docs/pilot-imc-2d.md)), B3 (3D) umgesetzt, Messlauf auf dem Server offen, siehe
+([Bericht](docs/pilot-imc-2d.md)), B3 (3D) abgenommen, siehe
 [docs/roadmap.md](docs/roadmap.md).
 
 ## Installieren und testen

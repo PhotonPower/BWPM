@@ -7,8 +7,9 @@ Usage (on the large machine, results go to experiments/out/):
 
     python experiments/b3_scaling.py --fractions 2.5 3.5 5 --window-um 96 --iterations 2
 
-`--fractions f` sets dx = dy = dz = λ/(f·n_max); wende2023 uses f = 5. The objective field is the
-Richards-Wolf plane-wave spectrum of an aplanatic objective (NA 0.4, x-polarised pupil),
+FFTs use all cores by default (`--workers -1`). `--fractions f` sets dx = dy = dz =
+λ/(f·n_max); wende2023 uses f = 5. The objective field is the Richards-Wolf plane-wave
+spectrum of an aplanatic objective (NA 0.4, x-polarised pupil),
 amplitude ∝ cos^(−1/2) θ per (k_x, k_y), with the transverse vector factors
 (cos²φ cos θ + sin²φ, cos φ sin φ (cos θ − 1)).
 """
@@ -80,7 +81,9 @@ def strehl(spectrum: np.ndarray, grid: Grid3D, k: float) -> tuple[float, float]:
     return float(values[j]), float(offsets[j])
 
 
-def run(fraction: float, window_um: float, iterations: int, with_imc: bool) -> dict[str, float]:
+def run(
+    fraction: float, window_um: float, iterations: int, with_imc: bool, workers: int
+) -> dict[str, float]:
     d = LAMBDA_UM * 1e-3 / (fraction * N_IMC)
     n = round(window_um * 1e-3 / d)
     n += n % 2
@@ -90,7 +93,12 @@ def run(fraction: float, window_um: float, iterations: int, with_imc: bool) -> d
     field = objective_field(grid, distance)
     plane = round((-1e-3 - z_in) / d)
     solver = Bidirectional3D(
-        grid, indices, labels, 1.0 + 0j, absorbing_mask_2d(grid, 20 * LAMBDA_UM * 1e-3)
+        grid,
+        indices,
+        labels,
+        1.0 + 0j,
+        absorbing_mask_2d(grid, 20 * LAMBDA_UM * 1e-3),
+        workers=workers,
     )
     start = time.perf_counter()
     res = solver.run(field, iterations=iterations, keep=(plane,))
@@ -112,7 +120,9 @@ def run(fraction: float, window_um: float, iterations: int, with_imc: bool) -> d
         "seconds": seconds,
         "peak_rss_mb": peak_mb,
         "stored_values": float(res.stored_values),
-        "model_mb": memory_estimate(n, n, res.stored_values // 2, pairs) / 2**20,
+        "model_mb": memory_estimate(n, n, res.stored_values // 2, pairs, nz=labels.shape[0])
+        / 2**20,
+        "workers": float(workers),
         "reflected_ratio": p_r / p_in,
         "strehl": s,
         "best_focus_um": (best - 1e-3) * 1e3,
@@ -125,12 +135,15 @@ def main() -> None:
     parser.add_argument("--window-um", type=float, default=96.0)
     parser.add_argument("--iterations", type=int, default=2)
     parser.add_argument("--bare", action="store_true", help="fibre without cap")
+    parser.add_argument(
+        "--workers", type=int, default=-1, help="FFT threads (scipy.fft), -1 = all cores"
+    )
     args = parser.parse_args()
     out = Path(__file__).parent / "out"
     out.mkdir(exist_ok=True)
     results = []
     for f in args.fractions:
-        r = run(f, args.window_um, args.iterations, not args.bare)
+        r = run(f, args.window_um, args.iterations, not args.bare, args.workers)
         print(json.dumps(r), flush=True)
         results.append(r)
     name = f"b3_scaling_{'bare' if args.bare else 'imc'}.json"
