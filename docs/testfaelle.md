@@ -20,6 +20,24 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K5 | Parabolspiegel (Silber) | Brennweite f′ (Parabel ohne Aberration) | Fokus 49,87 µm vom Scheitel bei f′ = 50 µm (wende2023: 49,85 µm), stabil bei Verfeinerung | B2 | ✅ (slow) | `test_mirror.py` |
 | K9 | gekippter ebener Silberspiegel | Reflexionsgesetz, Fresnel | Richtung → 2α bei Verfeinerung; Leistung weit unter Fresnel und nicht konvergent (Grenze des Verfahrens) | B2 | ✅ (slow) | `test_mirror.py` |
 | K6 | Faserfacette mit Index-Matching-Kappe, Kette Field Tracing → BWPM → Field Tracing (2D) | Fresnel, Spiegelbild des Luftfokus, analytische Plattenphase | Fokus des Reflexes −82,40 µm (Soll −82,42), Rückreflex an der Facette 4,2 % → 5,6·10⁻⁵, Strehl 0,9972 (Soll 0,9976) | B5 (2D vorgezogen) | ✅ | `test_pilot_imc.py` ([Bericht](pilot-imc-2d.md)) |
+| K6 (3D) | Faserfacette mit Index-Matching-Kappe in 3D, Kette Richards-Wolf-Spektrum → BWPM → Winkelspektrum | Fresnel je Winkel und Polarisation (flussgewichtet), Spiegelbild des Luftfokus, Fresnel Kappe → Kern/Mantel am Facettenfeld | Fokus des Reflexes −82,42 µm, Reflexionsgrad = Referenz, rücklaufender Fluss an der Facette in der Größe der Referenz, Strehl wie 2D | B5a | Hilfsfunktionen ✅, Messlauf auf dem Server offen | `test_pilot_imc3d.py`, `experiments/b3_scaling.py` ([Auftrag](agent-server-b5a.md)) |
+
+## K6 in 3D (B5a)
+
+Erweiterung von `experiments/b3_scaling.py` (mit Kappe): Reflexionsgrad aus dem Poynting-Fluss
+(`bwpm.pilot_imc3d.plane_power`, statt Summe der |E|²) gegen die flussgewichtete Fresnel-Referenz
+des einfallenden Spektrums (`reference_reflectance`, je Mode R_s bzw. R_p seines Winkels),
+Fokus des reflektierten Feldes (`axial_focus`, Sollwert: Spiegelbild des gebauten Luftfokus,
+−(50 + 32,42) µm), rücklaufender Fluss 1 µm vor der Facette gegen eine grobe Referenz (Fresnel bei
+senkrechtem Einfall Kappe → Kern bzw. Mantel, gewichtet mit dem Vorwärtsfluss über Kern und Mantel).
+Die Hilfsfunktionen sind in `tests/test_pilot_imc3d.py` gegen analytische Werte geprüft (cos-θ-Gesetz,
+Fresnel bei senkrechtem Einfall und am Brewster-Winkel, bekannter Defokus).
+
+**Funktionsprüfung im Container** (CPU-Kern, ein Kern, 274² × 243, λ/(1,2 n) – zu grob für
+Aussagen, 20 s): Reflexionsgrad 4,153 % gegen Referenz 4,158 %; Reflexfokus −82,48 µm gegen −82,42 µm
+(Schritt dz = 0,35 µm); rücklaufend 8,3·10⁻⁵ gegen grobe Referenz 8,9·10⁻⁵ (2D, K6: 5,6·10⁻⁵);
+der Fokus des einfallenden Feldes stimmt mit dem gebauten auf 10⁻¹³ µm überein; Strehl 0,9969.
+Die Messung in der Auflösung der Quelle steht aus ([Auftrag](agent-server-b5a.md)).
 
 ## K7: Randzone der Maske (B1)
 

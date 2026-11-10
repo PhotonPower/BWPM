@@ -56,3 +56,4 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B4e: Fusion-Adapter `bwpm.adapter` (`describe`, `prepare` mit Inhalts-Hash, `apply`, `estimate`,
   Ports mit `port_power` in 3D, `plane_wave`) und Konformitätstests K16 für alle Backends:
   Transfer-Matrix, Airy, Energieerhaltung, Reziprozität, Determinismus, zentrierter Port.
+- B5a: Auswertung des 3D-Piloten (`bwpm.pilot_imc3d`: Fluss, flussgewichtete Fresnel-Referenz, Fokus auf der Achse) mit Tests; `experiments/b3_scaling.py` meldet Reflexionsgrad gegen Referenz, Fokus des Reflexes und rücklaufenden Fluss an der Facette (K6 in 3D, Messlauf auf dem Server offen, `docs/agent-server-b5a.md`).
