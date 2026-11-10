@@ -31,7 +31,8 @@ Leitlinien:
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
 vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
-Kern aus B4.
+Kern aus B4. B5a (3D ohne Raytatouille) ist gemessen, siehe [docs/pilot-imc-3d.md](pilot-imc-3d.md);
+B5b (Kopplung mit Raytatouille) wartet auf Raytatouille v1.0 und den Port.
 
 ## Entscheidungen
 

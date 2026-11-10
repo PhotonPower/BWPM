@@ -20,6 +20,151 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K5 | Parabolspiegel (Silber) | Brennweite f′ (Parabel ohne Aberration) | Fokus 49,87 µm vom Scheitel bei f′ = 50 µm (wende2023: 49,85 µm), stabil bei Verfeinerung | B2 | ✅ (slow) | `test_mirror.py` |
 | K9 | gekippter ebener Silberspiegel | Reflexionsgesetz, Fresnel | Richtung → 2α bei Verfeinerung; Leistung weit unter Fresnel und nicht konvergent (Grenze des Verfahrens) | B2 | ✅ (slow) | `test_mirror.py` |
 | K6 | Faserfacette mit Index-Matching-Kappe, Kette Field Tracing → BWPM → Field Tracing (2D) | Fresnel, Spiegelbild des Luftfokus, analytische Plattenphase | Fokus des Reflexes −82,40 µm (Soll −82,42), Rückreflex an der Facette 4,2 % → 5,6·10⁻⁵, Strehl 0,9972 (Soll 0,9976) | B5 (2D vorgezogen) | ✅ | `test_pilot_imc.py` ([Bericht](pilot-imc-2d.md)) |
+| K6 (3D) | Faserfacette mit Index-Matching-Kappe in 3D, Kette Richards-Wolf-Spektrum → BWPM → Winkelspektrum | Fresnel je Winkel und Polarisation (flussgewichtet), Spiegelbild des Luftfokus, Fresnel Kappe → Kern/Mantel am Facettenfeld | Fokus des Reflexes −82,42 µm, Reflexionsgrad = Referenz, rücklaufender Fluss an der Facette in der Größe der Referenz, Strehl wie 2D | B5a | Hilfsfunktionen ✅, Messlauf und Diagnose B5a auf dem Server gemessen (Abnahme offen) | `test_pilot_imc3d.py`, `experiments/b3_scaling.py` ([Bericht](pilot-imc-3d.md)) |
+
+## K6 in 3D (B5a)
+
+Erweiterung von `experiments/b3_scaling.py` (mit Kappe): Reflexionsgrad aus dem Poynting-Fluss
+(`bwpm.pilot_imc3d.plane_power`, statt Summe der |E|²) gegen die flussgewichtete Fresnel-Referenz
+des einfallenden Spektrums (`reference_reflectance`, je Mode R_s bzw. R_p seines Winkels),
+Fokus des reflektierten Feldes (`axial_focus`, Sollwert: Spiegelbild des gebauten Luftfokus,
+−(50 + 32,42) µm), rücklaufender Fluss 1 µm vor der Facette gegen eine grobe Referenz (Fresnel bei
+senkrechtem Einfall Kappe → Kern bzw. Mantel, gewichtet mit dem Vorwärtsfluss über Kern und Mantel).
+Die Hilfsfunktionen sind in `tests/test_pilot_imc3d.py` gegen analytische Werte geprüft (cos-θ-Gesetz,
+Fresnel bei senkrechtem Einfall und am Brewster-Winkel, bekannter Defokus).
+
+**Funktionsprüfung im Container** (CPU-Kern, ein Kern, 274² × 243, λ/(1,2 n) – zu grob für
+Aussagen, 20 s): Reflexionsgrad 4,153 % gegen Referenz 4,158 %; Reflexfokus −82,48 µm gegen −82,42 µm
+(Schritt dz = 0,35 µm); rücklaufend 8,3·10⁻⁵ gegen grobe Referenz 8,9·10⁻⁵ (2D, K6: 5,6·10⁻⁵);
+der Fokus des einfallenden Feldes stimmt mit dem gebauten auf 10⁻¹³ µm überein; Strehl 0,9969.
+Die Messung in der Auflösung der Quelle steht im folgenden Abschnitt ([Auftrag](agent-server-b5a.md)).
+
+### Messlauf B5a
+
+Umgebung: NVIDIA RTX 6000 Ada (49 GB, Treiber 590.48.01), nvcc 12.9.41, GCC 14.3.1, Python 3.13.5,
+CUDA-Kern aus B4d (`fast.CORE_AVAILABLE` und `fast.cuda_available()` beide `True`),
+`tests/test_pilot_imc3d.py` und `tests/test_core_cuda.py` 15 Tests grün. Alle Läufe mit Kappe,
+Fenster 96 µm, Branch `b5a-pilot-3d-analysis`, im Ordner `experiments`:
+
+```bash
+python b3_scaling.py --fractions 2.5 3.5 5 --window-um 96 --iterations 2 --core --backend cuda
+python b3_scaling.py --fractions 2.5 --window-um 96 --iterations 1 --core --backend cuda
+python b3_scaling.py --fractions 2.5 --window-um 96 --iterations 4 --core --backend cuda
+```
+
+**Abtastung** (2 Iterationen; f = Bruchteil der Quellauflösung, n = Gitterpunkte je Seite, nz = Schichten):
+
+| Feld | f = 2,5 (572², 506) | f = 3,5 (800², 708) | f = 5 (1142², 1011) |
+| --- | --- | --- | --- |
+| `reflectance` | 4,1578 % | 4,1525 % | 4,1426 % |
+| `reflectance_ref` | 4,1584 % | 4,1584 % | 4,1585 % |
+| `reflectance` / `reflectance_ref` − 1 | −0,016 % | −0,14 % | −0,38 % |
+| `reflex_focus_um` | −82,40 | −82,32 | −82,42 |
+| `reflex_focus_ref_um` | −82,42 | −82,42 | −82,42 |
+| `backward_over_forward_at_facet` | 8,356·10⁻⁵ | 8,338·10⁻⁵ | 8,348·10⁻⁵ |
+| `backward_over_forward_ref` | 9,00·10⁻⁵ | 8,82·10⁻⁵ | 8,90·10⁻⁵ |
+| `incident_focus_check_um` | 7,8·10⁻¹⁴ | 7,8·10⁻¹⁴ | 7,8·10⁻¹⁴ |
+| `strehl` | 0,99694 | 0,99695 | 0,99691 |
+| `best_focus_um` | 0,26 | 0,12 | 0,18 |
+| `seconds` | 24,5 | 63,7 | 273,2 |
+| `peak_rss_mb` | 1571 | 4074 | 11279 |
+
+**Iterationen** (f = 2,5):
+
+| Feld | 1 Iteration | 2 Iterationen | 4 Iterationen |
+| --- | --- | --- | --- |
+| `reflectance` | 4,157776 % | 4,157781 % | 4,157781 % |
+| `reflex_focus_um` | −82,40 | −82,40 | −82,40 |
+| `backward_over_forward_at_facet` | 8,3583·10⁻⁵ | 8,3555·10⁻⁵ | 8,3555·10⁻⁵ |
+| `backward_over_forward_ref` | 9,0001·10⁻⁵ | 8,9977·10⁻⁵ | 8,9977·10⁻⁵ |
+| `strehl` | 0,996929 | 0,996935 | 0,996935 |
+| `seconds` | 26,8 | 24,5 | 43,0 |
+
+Befund (nur Zahlen, keine Erklärung, nichts angepasst):
+
+1. Zwischen f = 2,5, 3,5 und 5 ändern sich der Reflexionsgrad um 0,015 Prozentpunkte (relativ 0,36 %)
+   und der rücklaufende Fluss um 0,2 %. Der Reflexionsgrad liegt für alle f unter der Referenz, und
+   die Abweichung wächst mit f (−0,016 %, −0,14 %, −0,38 %); sie bleibt unter 1 %. Der Reflexfokus
+   liegt bei f = 2,5 und 5 bis 0,02 µm an der Referenz, bei f = 3,5 bei −82,32 µm (0,10 µm daneben).
+   Der Strehl ist auf 4·10⁻⁵ konstant, `best_focus_um` schwankt zwischen 0,12 und 0,26 µm.
+2. Zwischen 1, 2 und 4 Iterationen ändern sich Reflexionsgrad (< 10⁻⁵ relativ) und Reflexfokus
+   (nicht) praktisch nicht; der rücklaufende Fluss ändert sich zwischen 1 und 2 Iterationen um 0,03 %
+   und danach nicht mehr; der Strehl um 6·10⁻⁶ und danach nicht mehr.
+3. `backward_over_forward_at_facet` liegt in 3D bei 8,3·10⁻⁵ gegen 5,6·10⁻⁵ in 2D (K6), also um den
+   Faktor 1,5 höher. Die grobe Referenz (8,8–9,0·10⁻⁵) liegt 6–8 % darüber.
+4. Der Test der Auswertung (`incident_focus_check_um` < 10⁻⁶ µm) ist mit 7,8·10⁻¹⁴ µm erfüllt.
+
+Die Erwartungen im Auftrag sind keine Abnahmekriterien; die Abnahme legt der Maintainer fest.
+Rohdaten (`experiments/out/*.json`) sind nicht eingecheckt.
+
+### Diagnose B5a
+
+Umgebung wie im Messlauf B5a (RTX 6000 Ada, nvcc 12.9.41, GCC 14.3.1, Python 3.13.5, CUDA-Kern aus B4d; Branch `b5a-pilot-3d-analysis` ab `2121cf2`). Alle Läufe mit Kappe, 2 Iterationen, im Ordner `experiments`:
+
+```bash
+for w in 96 128; do
+  python b3_scaling.py --fractions 2.5 3.5 --window-um $w --iterations 2 --core --backend cuda
+done
+python b3_scaling.py --fractions 5 --window-um 96 --iterations 2 --core --backend cuda
+python b3_scaling.py --fractions 5 --window-um 128 --iterations 2 --core --backend cuda   # optional
+```
+
+**Fenster 96 µm**
+
+| Feld | f = 2,5 | f = 3,5 | f = 5,0 |
+| --- | --- | --- | --- |
+| `reflectance` | 4,1578 % | 4,1525 % | 4,1426 % |
+| `reflectance_ref` | 4,1584 % | 4,1584 % | 4,1585 % |
+| Verhältnis − 1 | −0,016 % | −0,142 % | −0,382 % |
+| `reflex_focus_um` | −82,40 | −82,32 | −82,42 |
+| `backward_over_forward_at_facet` | 8,356·10⁻⁵ | 8,338·10⁻⁵ | 8,348·10⁻⁵ |
+| `backward_over_forward_ref` | 8,998·10⁻⁵ | 8,816·10⁻⁵ | 8,905·10⁻⁵ |
+| `core_flux_fraction` | 0,8234 | 0,8276 | 0,8255 |
+| Kernanteil aus gemessenem rücklaufenden Fluss | 0,8377 | 0,8381 | 0,8379 |
+| `n`, `nz` | 572², 506 | 800², 708 | 1142², 1011 |
+| `seconds` | 24 | 61 | 245 |
+| `peak_rss_mb` | 1574 | 4077 | 11276 |
+
+**Fenster 128 µm**
+
+| Feld | f = 2,5 | f = 3,5 | f = 5,0 |
+| --- | --- | --- | --- |
+| `reflectance` | 4,1673 % | 4,1664 % | 4,1525 % |
+| `reflectance_ref` | 4,1584 % | 4,1584 % | 4,1584 % |
+| Verhältnis − 1 | +0,215 % | +0,193 % | −0,141 % |
+| `reflex_focus_um` | −82,40 | −82,32 | −82,42 |
+| `backward_over_forward_at_facet` | 8,428·10⁻⁵ | 8,412·10⁻⁵ | 8,421·10⁻⁵ |
+| `backward_over_forward_ref` | 9,067·10⁻⁵ | 8,887·10⁻⁵ | 8,972·10⁻⁵ |
+| `core_flux_fraction` | 0,8218 | 0,8259 | 0,8240 |
+| Kernanteil aus gemessenem rücklaufenden Fluss | 0,8360 | 0,8364 | 0,8362 |
+| `n`, `nz` | 762², 506 | 1066², 708 | 1524², 1011 |
+| `seconds` | 50 | 134 | 410 |
+| `peak_rss_mb` | 2663 | 7105 | 19950 |
+
+Fresnel bei senkrechtem Einfall: r_core = 1,335·10⁻⁵, r_mantel = 4,460·10⁻4.
+
+Befund (nur Zahlen, keine Deutung, nichts angepasst):
+
+1. **Drift und Fenster.** Bei gleichem f unterscheiden sich 96 und 128 µm im Abstand Reflexionsgrad zu
+   Referenz um 0,23 / 0,34 / 0,24 Prozentpunkte (f = 2,5 / 3,5 / 5). Bei 96 µm ist der Abstand für
+   alle f negativ (−0,016 / −0,142 / −0,382 %), bei 128 µm positiv bei f = 2,5 und 3,5
+   (+0,215 / +0,193 %) und negativ bei f = 5 (−0,141 %). In beiden Fenstern sinkt der Reflexionsgrad
+   mit f (96 µm: 4,1578 → 4,1426 %; 128 µm: 4,1673 → 4,1525 %), um jeweils 0,015 Prozentpunkte.
+   Der Strehl liegt bei 128 µm um 2,5–3·10⁻⁴ höher (0,9972 gegen 0,9969).
+2. **Kernanteil.** `core_flux_fraction` liegt bei 96 µm bei 0,8234 / 0,8276 / 0,8255 und bei 128 µm
+   bei 0,8218 / 0,8259 / 0,8240 (f = 2,5 / 3,5 / 5). Mit f ändert er sich um höchstens 0,004
+   (nicht monoton, bei f = 3,5 am größten), mit dem Fenster um 0,0016–0,0017 (bei 128 µm kleiner).
+3. **Kernanteil und rücklaufender Fluss.** f_Kern · r_core + (1 − f_Kern) · r_mantel mit dem gemessenen
+   Kernanteil ergibt 8,975 / 8,794 / 8,882·10⁻⁵ (96 µm) und stimmt mit `backward_over_forward_ref`
+   auf 0,3 % überein (Referenz 8,998 / 8,816 / 8,905·10⁻⁵). Der gemessene rücklaufende Fluss
+   (8,356 / 8,338 / 8,348·10⁻⁵) liegt bei 0,929 / 0,946 / 0,938 dieses Werts (128 µm: 0,930 / 0,947 /
+   0,939). Der Kernanteil, den der gemessene Fluss ergäbe, ist 0,838 (96 µm) bzw. 0,836 (128 µm),
+   gemessen sind 0,82–0,83; die Differenz ist 0,011–0,015.
+4. Der Kernanteil in 2D wurde nicht gemessen; der Auftrag nennt aus den Fresnel-Werten rückwärts
+   gerechnet 0,90 (2D) und 0,84 (3D). Der gemessene Kernanteil in 3D (0,82–0,83) liegt in der Nähe
+   des 3D-Werts, nicht bei 0,90.
+
+Rohdaten (`experiments/out/*.json`) sind nicht eingecheckt.
 
 ## K7: Randzone der Maske (B1)
 
