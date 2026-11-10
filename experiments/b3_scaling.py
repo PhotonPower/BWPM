@@ -194,6 +194,7 @@ def run(
         "reflectance_ref": reflectance_ref,
         "backward_over_forward_at_facet": backward_facet,
         "backward_over_forward_ref": backward_ref,
+        "core_flux_fraction": f_core if with_imc else None,
         "reflex_focus_um": z_reflex,
         "reflex_focus_ref_um": -(D_IMC + AIR_FOCUS_DEPTH) * 1e3 if with_imc else None,
         "incident_focus_check_um": focus_um(field, grid, 1.0) - distance * 1e3,
