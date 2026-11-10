@@ -97,6 +97,75 @@ Befund (nur Zahlen, keine Erklärung, nichts angepasst):
 Die Erwartungen im Auftrag sind keine Abnahmekriterien; die Abnahme legt der Maintainer fest.
 Rohdaten (`experiments/out/*.json`) sind nicht eingecheckt.
 
+### Diagnose B5a
+
+Umgebung wie im Messlauf B5a (RTX 6000 Ada, nvcc 12.9.41, GCC 14.3.1, Python 3.13.5, CUDA-Kern aus B4d; Branch `b5a-pilot-3d-analysis` ab `2121cf2`). Alle Läufe mit Kappe, 2 Iterationen, im Ordner `experiments`:
+
+```bash
+for w in 96 128; do
+  python b3_scaling.py --fractions 2.5 3.5 --window-um $w --iterations 2 --core --backend cuda
+done
+python b3_scaling.py --fractions 5 --window-um 96 --iterations 2 --core --backend cuda
+python b3_scaling.py --fractions 5 --window-um 128 --iterations 2 --core --backend cuda   # optional
+```
+
+**Fenster 96 µm**
+
+| Feld | f = 2,5 | f = 3,5 | f = 5,0 |
+| --- | --- | --- | --- |
+| `reflectance` | 4,1578 % | 4,1525 % | 4,1426 % |
+| `reflectance_ref` | 4,1584 % | 4,1584 % | 4,1585 % |
+| Verhältnis − 1 | −0,016 % | −0,142 % | −0,382 % |
+| `reflex_focus_um` | −82,40 | −82,32 | −82,42 |
+| `backward_over_forward_at_facet` | 8,356·10⁻⁵ | 8,338·10⁻⁵ | 8,348·10⁻⁵ |
+| `backward_over_forward_ref` | 8,998·10⁻⁵ | 8,816·10⁻⁵ | 8,905·10⁻⁵ |
+| `core_flux_fraction` | 0,8234 | 0,8276 | 0,8255 |
+| Kernanteil aus gemessenem rücklaufenden Fluss | 0,8377 | 0,8381 | 0,8379 |
+| `n`, `nz` | 572², 506 | 800², 708 | 1142², 1011 |
+| `seconds` | 24 | 61 | 245 |
+| `peak_rss_mb` | 1574 | 4077 | 11276 |
+
+**Fenster 128 µm**
+
+| Feld | f = 2,5 | f = 3,5 | f = 5,0 |
+| --- | --- | --- | --- |
+| `reflectance` | 4,1673 % | 4,1664 % | 4,1525 % |
+| `reflectance_ref` | 4,1584 % | 4,1584 % | 4,1584 % |
+| Verhältnis − 1 | +0,215 % | +0,193 % | −0,141 % |
+| `reflex_focus_um` | −82,40 | −82,32 | −82,42 |
+| `backward_over_forward_at_facet` | 8,428·10⁻⁵ | 8,412·10⁻⁵ | 8,421·10⁻⁵ |
+| `backward_over_forward_ref` | 9,067·10⁻⁵ | 8,887·10⁻⁵ | 8,972·10⁻⁵ |
+| `core_flux_fraction` | 0,8218 | 0,8259 | 0,8240 |
+| Kernanteil aus gemessenem rücklaufenden Fluss | 0,8360 | 0,8364 | 0,8362 |
+| `n`, `nz` | 762², 506 | 1066², 708 | 1524², 1011 |
+| `seconds` | 50 | 134 | 410 |
+| `peak_rss_mb` | 2663 | 7105 | 19950 |
+
+Fresnel bei senkrechtem Einfall: r_core = 1,335·10⁻⁵, r_mantel = 4,460·10⁻4.
+
+Befund (nur Zahlen, keine Deutung, nichts angepasst):
+
+1. **Drift und Fenster.** Bei gleichem f unterscheiden sich 96 und 128 µm im Abstand Reflexionsgrad zu
+   Referenz um 0,23 / 0,34 / 0,24 Prozentpunkte (f = 2,5 / 3,5 / 5). Bei 96 µm ist der Abstand für
+   alle f negativ (−0,016 / −0,142 / −0,382 %), bei 128 µm positiv bei f = 2,5 und 3,5
+   (+0,215 / +0,193 %) und negativ bei f = 5 (−0,141 %). In beiden Fenstern sinkt der Reflexionsgrad
+   mit f (96 µm: 4,1578 → 4,1426 %; 128 µm: 4,1673 → 4,1525 %), um jeweils 0,015 Prozentpunkte.
+   Der Strehl liegt bei 128 µm um 2,5–3·10⁻⁴ höher (0,9972 gegen 0,9969).
+2. **Kernanteil.** `core_flux_fraction` liegt bei 96 µm bei 0,8234 / 0,8276 / 0,8255 und bei 128 µm
+   bei 0,8218 / 0,8259 / 0,8240 (f = 2,5 / 3,5 / 5). Mit f ändert er sich um höchstens 0,004
+   (nicht monoton, bei f = 3,5 am größten), mit dem Fenster um 0,0016–0,0017 (bei 128 µm kleiner).
+3. **Kernanteil und rücklaufender Fluss.** f_Kern · r_core + (1 − f_Kern) · r_mantel mit dem gemessenen
+   Kernanteil ergibt 8,975 / 8,794 / 8,882·10⁻⁵ (96 µm) und stimmt mit `backward_over_forward_ref`
+   auf 0,3 % überein (Referenz 8,998 / 8,816 / 8,905·10⁻⁵). Der gemessene rücklaufende Fluss
+   (8,356 / 8,338 / 8,348·10⁻⁵) liegt bei 0,929 / 0,946 / 0,938 dieses Werts (128 µm: 0,930 / 0,947 /
+   0,939). Der Kernanteil, den der gemessene Fluss ergäbe, ist 0,838 (96 µm) bzw. 0,836 (128 µm),
+   gemessen sind 0,82–0,83; die Differenz ist 0,011–0,015.
+4. Der Kernanteil in 2D wurde nicht gemessen; der Auftrag nennt aus den Fresnel-Werten rückwärts
+   gerechnet 0,90 (2D) und 0,84 (3D). Der gemessene Kernanteil in 3D (0,82–0,83) liegt in der Nähe
+   des 3D-Werts, nicht bei 0,90.
+
+Rohdaten (`experiments/out/*.json`) sind nicht eingecheckt.
+
 ## K7: Randzone der Maske (B1)
 
 TE-Gaußstrahl w₀ = 2 µm (4 λ), um 30° gekippt, 40 µm durch Luft, λ = 0,5 µm, dy = dz = λ/10,
