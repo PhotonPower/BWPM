@@ -26,6 +26,7 @@ from pathlib import Path
 import numpy as np
 
 from bwpm import fast
+from bwpm.pilot_imc3d import axial_focus, plane_power, reference_reflectance
 from bwpm.volume3d import Bidirectional3D, Grid3D, absorbing_mask_2d, memory_estimate
 
 LAMBDA_UM = 0.635
@@ -96,6 +97,16 @@ def strehl(spectrum: np.ndarray, grid: Grid3D, k: float) -> tuple[float, float]:
     return float(values[j]), float(offsets[j])
 
 
+def focus_um(field: np.ndarray, grid: Grid3D, index: float) -> float:  # type: ignore[type-arg]
+    """Distance (µm) along the direction of travel to the on-axis intensity maximum.
+
+    Coarse scan (0.5 µm over -30…+130 µm), then 0.02 µm around the maximum.
+    """
+    coarse, _ = axial_focus(field, grid, index, np.arange(-0.03, 0.13, 0.0005), na=NA)
+    fine, _ = axial_focus(field, grid, index, coarse + np.arange(-0.0005, 0.00051, 0.00002), na=NA)
+    return fine * 1e3
+
+
 def run(
     fraction: float,
     window_um: float,
@@ -112,7 +123,7 @@ def run(
     indices, labels, z_in = volume(grid, with_imc)
     distance = -z_in - D_IMC + AIR_FOCUS_DEPTH if with_imc else -z_in
     field = objective_field(grid, distance)
-    plane = round((-1e-3 - z_in) / d)
+    plane = round((-1e-3 - z_in) / d)  # 1 µm in front of the facet, inside the cap
     solver = Bidirectional3D(
         grid,
         indices,
@@ -143,6 +154,26 @@ def run(
         strehl(np.fft.fft2(forward) * shift, grid, grid.k0 * N_IMC) if with_imc else (0.0, 0.0)
     )
     pairs = count_pairs(labels)
+    # K6 in 3D (B5a): flux-based reflectance with an independent Fresnel reference, the reflex
+    # focus (mirror image of the air focus) and the backward flux between cap and facet.
+    p_in_flux = plane_power(field, grid, 1.0)
+    reflectance = plane_power(res.reflected, grid, 1.0) / p_in_flux
+    reflectance_ref = reference_reflectance(field, grid, 1.0, N_IMC) if with_imc else None
+    backward_facet = (
+        plane_power(res.planes[plane][1], grid, N_IMC)
+        / plane_power(res.planes[plane][0], grid, N_IMC)
+        if with_imc
+        else None
+    )
+    # rough reference for the backflow at the facet: Fresnel at normal incidence cap → core / clad,
+    # weighted with the forward flux over the core (r <= 1 µm) and the cladding at the plane
+    fwd = np.abs(res.planes[plane][0]) ** 2
+    in_core = (grid.x[None, :] ** 2 + grid.y[:, None] ** 2) <= 1e-3**2
+    f_core = float(fwd[in_core].sum() / fwd.sum()) if with_imc else 0.0
+    r_core = ((N_CORE - N_IMC) / (N_CORE + N_IMC)) ** 2
+    r_clad = ((N_CLAD - N_IMC) / (N_CLAD + N_IMC)) ** 2
+    backward_ref = f_core * r_core + (1 - f_core) * r_clad if with_imc else None
+    z_reflex = z_in * 1e3 - focus_um(res.reflected, grid, 1.0) if with_imc else None
     return {
         "fraction": fraction,
         "n": n,
@@ -159,6 +190,13 @@ def run(
             core and backend != "cpu" and fast.cuda_available()
         ),
         "reflected_ratio": p_r / p_in,
+        "reflectance": reflectance,
+        "reflectance_ref": reflectance_ref,
+        "backward_over_forward_at_facet": backward_facet,
+        "backward_over_forward_ref": backward_ref,
+        "reflex_focus_um": z_reflex,
+        "reflex_focus_ref_um": -(D_IMC + AIR_FOCUS_DEPTH) * 1e3 if with_imc else None,
+        "incident_focus_check_um": focus_um(field, grid, 1.0) - distance * 1e3,
         "strehl": s,
         "best_focus_um": (best - 1e-3) * 1e3,
     }
