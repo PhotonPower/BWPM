@@ -218,3 +218,10 @@ Brechzahländerungen prüfen, unabhängig vom Verfahren. Code `bwpm.born.born_fo
   D_y) kommt im Schritt nicht vor. Die Formeln treffen die Rechnung nach Extrapolation im Schritt
   auf ≤ 5·10⁻⁴ bis 63° (Test `test_fpwpm_deviation_matches_first_order_analysis`). Die Abweichung
   bleibt unter 1 % bis θ ≈ 11° (TE) bzw. 6,6° (TM).
+- **3D (K17):** `bwpm.born.born_forward_3d` setzt S mit dem Querblock der dyadischen
+  Green-Funktion, E⊥ = S·(I − k⊥k⊥ᵀ/k²)·ê, um (Eigenwerte k_z²/k² längs k⊥, 1 quer; für ein in x
+  oder y homogenes Gitter gleich dem 2D-Ergebnis). Die FPWPM in 3D ist in erster Ordnung
+  komponentenweise skalar: E⊥ = r(θ)·S·ê mit r = cos θ (3 − cos θ)/2, gestreutes E_y bei
+  x-Polarisation ≈ 0. Gegen das volle Feld (mit E_z nach Gl. (5)) und vektorielles Born folgt
+  azimutal gemittelt r²/cos²θ (s-Anteil r² zu klein, p-Anteil r²/cos⁴θ zu groß); gemessen an
+  einer dünnen Zufallsschicht auf 0,1–2 %.
