@@ -78,3 +78,5 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - Nachtrag zu Scattuccino S9b-7 (PR #33) in `docs/hinweise-scattuccino-s9b2.md`: K17-Vorhersage
   für 1 − g des vollen Feldes (neue Spalte in `experiments/vector_born_wm.py`); E9 erklärt nur
   etwa 0,01 der gemessenen g-Abweichung von 0,042.
+- Entscheidung E10: Variante B3 (#37) angenommen, neue Stufe B7 „Schwache Fluktuationen“
+  (B7a Python-Referenz, B7b Kern) mit Abnahme K18.
