@@ -1,8 +1,9 @@
 """K19: back scattering at weak fluctuations δn in the BWPM (B8a, E12, docs/spezifikation.md §11).
 
 References independent of bwpm: the exact multilayer solution (transfer matrix of tangential E and
-H, as in test_bidirectional.py) of the stack ñ₀ + δn_j, and the closed slab integral of the first
-Born approximation. The structure is a homogeneous host; δn is given per slab.
+H, as in test_bidirectional.py) of the stack ñ₀ + δn_j, the closed slab integral of the first
+Born approximation, and the RCWA of a lamellar grating in reflection (`tests/rcwa_reference.py`,
+itself checked here against Airy and energy conservation). The structure is a homogeneous host.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from typing import Literal
 
 import numpy as np
 import pytest
+from rcwa_reference import lamellar_reflection, lamellar_transmission
 
 from bwpm.bidirectional import Bidirectional2D
 from bwpm.fluctuation import born_emission, born_sources
@@ -197,3 +199,59 @@ def test_bwpm_3d_reduces_to_2d(pol: Literal["TE", "TM"]) -> None:
     for column in range(nx):
         np.testing.assert_allclose(res.reflected[:, column], ref.reflected, rtol=0, atol=1e-12)
         np.testing.assert_allclose(res.transmitted[:, column], ref.transmitted, rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize("pol", ["TE", "TM"])
+def test_rcwa_reflection_is_exact_for_a_slab_and_conserves_energy(
+    pol: Literal["TE", "TM"],
+) -> None:
+    """The reference itself: homogeneous layer 1.40 in 1.38 (2.1 µm, normal incidence) against Airy,
+    and a strong lossless grating (1.38/1.6) conserving the flux over all orders (TM with the
+    factor −k_z/k of the reflected E_y, docs/testfaelle.md K19)."""
+    lam, n0, n1, thick = 0.8e-3, 1.38, 1.40, 2.1e-3
+    k0 = 2 * np.pi / lam
+    r = lamellar_reflection(n0, n1, n1, 0.8e-3, 0.0, 0.4e-3, thick, lam, 5, pol)[0]
+    r01 = (n0 - n1) / (n0 + n1)
+    phase = np.exp(2j * n1 * k0 * thick)
+    assert abs(r - r01 * (1 - phase) / (1 - r01**2 * phase)) < 1e-14
+    period = 0.8e-3
+    refl = lamellar_reflection(n0, n0, 1.6, period, -0.01e-3, 0.39e-3, thick, lam, 15, pol)
+    trans = lamellar_transmission(n0, n0, 1.6, period, -0.01e-3, 0.39e-3, thick, lam, 15, pol)
+    k = n0 * k0
+    total = 0.0
+    for m in refl:
+        ky = 2 * np.pi * m / period
+        if ky * ky < k * k:
+            kz = np.sqrt(k * k - ky * ky)
+            weight = kz / k if pol == "TE" else k / kz
+            total += (abs(refl[m]) ** 2 + abs(trans[m]) ** 2) * weight
+    assert abs(total - 1) < 1e-12
+
+
+@pytest.mark.parametrize("pol", ["TE", "TM"])
+@pytest.mark.parametrize("delta_n", [0.01, 0.03])
+def test_grating_reflection_matches_rcwa(delta_n: float, pol: Literal["TE", "TM"]) -> None:
+    """Lamellar δn grating (period 0.8 µm, 2.1 µm thick, λ = 0.8 µm, ñ₀ = 1.38, dy = dz = 0.02 µm):
+    reflected orders 0 and ±1 (±1 at 46° backwards) after 10 iterations against the RCWA. The
+    remaining error is of second order in δn, of the size δn/ñ₀ (§10, §11); tolerance δn."""
+    period_um, px, step_um, thick_um = 0.8, 40, 0.02, 2.1
+    grid = Grid2D(ny=px, dy=period_um / px * 1e-3, dz=step_um * 1e-3, wavelength_um=0.8)
+    nz = round(thick_um / step_um)
+    labels = np.zeros((nz + 4, px), dtype=np.int64)
+    fluctuation = np.zeros((nz + 4, px))
+    fluctuation[:nz, : px // 2] = delta_n
+    prop = Propagator2D(grid, [1.38 + 0j], labels, 1.38 + 0j, fluctuation=fluctuation)
+    col = 0 if pol == "TE" else 1
+    field = np.zeros((px, 2), dtype=np.complex128)
+    field[:, col] = 1.0
+    reflected = Bidirectional2D(prop).run(field, iterations=10).reflected
+    spectrum = np.fft.fft(reflected[:, col]) / px
+    dy = grid.dy
+    # pixel n is the cell |y − n·dy| ≤ dy/2 in the sample order of the FFT (as K17, K18)
+    rcwa = lamellar_reflection(
+        1.38, 1.38, 1.38 + delta_n, period_um * 1e-3, -dy / 2, (px // 2 - 0.5) * dy,
+        thick_um * 1e-3, 0.8e-3, 15, pol,
+    )  # fmt: skip
+    for m in (0, 1, -1):
+        assert abs(rcwa[m]) > 1e-4
+        assert abs(spectrum[m] / rcwa[m] - 1) < delta_n, (m, spectrum[m], rcwa[m])
