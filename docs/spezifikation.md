@@ -232,3 +232,6 @@ Brechzahländerungen prüfen, unabhängig vom Verfahren. Code `bwpm.born.born_fo
   wende2023. Streuung an feinen Brechzahländerungen ist quantitativ (Amplitude < 1 %) nur bis
   θ ≈ 11° (s) bzw. 6,6° (p). Eine Erweiterung für schwache Fluktuationen δn (Born-konsistentes
   Inkrement im Wirtsmedium, WPM für die Struktur) ist als Vorschlag in #37 beschrieben.
+- **Entscheidung E10 (2026-11-19):** Variante B3 aus #37 angenommen als Stufe B7. Formeln,
+  Quelle und Regeln für streifende Wellen folgen in einem eigenen Abschnitt mit B7a; bis dahin
+  gilt #37.
