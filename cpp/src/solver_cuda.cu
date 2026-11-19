@@ -7,6 +7,9 @@
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include <thrust/complex.h>
+#include <thrust/device_ptr.h>
+#include <thrust/execution_policy.h>
+#include <thrust/inner_product.h>
 
 #include <algorithm>
 #include <map>
@@ -265,6 +268,77 @@ __global__ void k_born_emit(const dcplx* sources, dcplx* total, std::size_t ny, 
   }
 }
 
+// ---- flux-conserving Born step (§12, B9b): G_d, phases and vector operations for GMRES ------
+
+// G_d, first half: work3 = (Ŝ_x, Ŝ_y, Ŝ_z) on propagating waves, Ŝ_z = −d·k⊥·Ŝ⊥/k_z
+__global__ void k_g_prepare(const dcplx* spectrum, dcplx* work3, std::size_t ny, std::size_t nx,
+                            double val_x, double val_y, dcplx host, double k0, int direction) {
+  const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (q >= ny * nx) return;
+  const double kx = fftfreq(static_cast<long long>(q % nx), static_cast<long long>(nx), val_x);
+  const double ky = fftfreq(static_cast<long long>(q / nx), static_cast<long long>(ny), val_y);
+  const double kp2 = kx * kx + ky * ky;
+  if (!born_propagating(host * host * (k0 * k0), kp2)) {
+    work3[3 * q] = work3[3 * q + 1] = work3[3 * q + 2] = 0.0;
+    return;
+  }
+  const dcplx kz = kz_of(host, k0, kp2);
+  const dcplx ex = spectrum[2 * q], ey = spectrum[2 * q + 1];
+  work3[3 * q] = ex;
+  work3[3 * q + 1] = ey;
+  work3[3 * q + 2] = -static_cast<double>(direction) * (kx * ex + ky * ey) / kz;
+}
+
+// G_d, second half: out = i dz/(2k_z)·[P(k_d)·Ŝ]⊥ on propagating waves
+__global__ void k_g_finish(const dcplx* work3, dcplx* out, std::size_t ny, std::size_t nx,
+                           double val_x, double val_y, dcplx host, double k0, double dz,
+                           int direction) {
+  const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (q >= ny * nx) return;
+  const double kx = fftfreq(static_cast<long long>(q % nx), static_cast<long long>(nx), val_x);
+  const double ky = fftfreq(static_cast<long long>(q / nx), static_cast<long long>(ny), val_y);
+  const double kp2 = kx * kx + ky * ky;
+  if (!born_propagating(host * host * (k0 * k0), kp2)) {
+    out[2 * q] = out[2 * q + 1] = 0.0;
+    return;
+  }
+  const dcplx kz = kz_of(host, k0, kp2);
+  const dcplx im(0.0, 1.0);
+  const dcplx k = host * k0;
+  const dcplx green = im * dz / (2.0 * kz);
+  const dcplx s0 = work3[3 * q], s1 = work3[3 * q + 1], s2 = work3[3 * q + 2];
+  const dcplx longitudinal = (kx * s0 + ky * s1 + static_cast<double>(direction) * kz * s2) / (k * k);
+  out[2 * q] = green * (s0 - kx * longitudinal);
+  out[2 * q + 1] = green * (s1 - ky * longitudinal);
+}
+
+// data *= e^(i·sign·k_z dz/2) on propagating waves, 0 elsewhere (P_½ and its inverse)
+__global__ void k_half(dcplx* data, std::size_t ny, std::size_t nx, double val_x, double val_y,
+                       dcplx host, double k0, double dz, double sign) {
+  const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (q >= ny * nx) return;
+  const double kx = fftfreq(static_cast<long long>(q % nx), static_cast<long long>(nx), val_x);
+  const double ky = fftfreq(static_cast<long long>(q / nx), static_cast<long long>(ny), val_y);
+  const double kp2 = kx * kx + ky * ky;
+  dcplx f(0.0, 0.0);
+  if (born_propagating(host * host * (k0 * k0), kp2))
+    f = thrust::exp(dcplx(0.0, sign) * kz_of(host, k0, kp2) * (dz / 2.0));
+  data[2 * q] *= f;
+  data[2 * q + 1] *= f;
+}
+
+__global__ void k_axpby(dcplx* y, const dcplx* x, dcplx a, dcplx b, std::size_t m) {
+  // y = a·x + b·y
+  const std::size_t i = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (i < m) y[i] = a * x[i] + b * y[i];
+}
+
+struct ConjMul {
+  __host__ __device__ dcplx operator()(const dcplx& u, const dcplx& v) const {
+    return thrust::conj(u) * v;
+  }
+};
+
 // out += inc·norm·mask (mask may be null)
 __global__ void k_born_add(dcplx* out, const dcplx* inc, const double* mask, double norm,
                            std::size_t n) {
@@ -309,6 +383,9 @@ struct CudaSolver::Impl {
   DeviceBuffer<dcplx> delta, full3, work3, sources, inc;
   cufftHandle plan3{};
   bool plan3_ok = false;
+  // GMRES (B9b): Krylov basis and work vectors of 2·n entries
+  std::vector<DeviceBuffer<dcplx>> basis;
+  DeviceBuffer<dcplx> g_x, g_rhs, g_y, g_w, g_tmp;
   std::vector<std::set<std::pair<std::int32_t, std::int32_t>>> pairs_fwd;  // pairs of step p
 
   std::size_t n() const { return g.ny * g.nx; }
@@ -368,6 +445,153 @@ struct CudaSolver::Impl {
     k_born_add<<<blocks(nn), kThreads>>>(out.ptr, inc.ptr,
                                          masked && has_mask ? mask.ptr : nullptr, norm, nn);
     check(cudaGetLastError(), "k_born_add");
+  }
+
+  // out = G_d·in on spectra (2·n), §12; δn of the slab must be uploaded
+  void born_operator(const dcplx* in, dcplx* out, std::size_t slab, int direction) {
+    const std::size_t nn = n();
+    const double val_x = 1.0 / (static_cast<double>(g.nx) * g.dx);
+    const double val_y = 1.0 / (static_cast<double>(g.ny) * g.dy);
+    const double norm = 1.0 / static_cast<double>(nn);
+    const dcplx h(host[slab].real(), host[slab].imag());
+    k_g_prepare<<<blocks(nn), kThreads>>>(in, work3.ptr, g.ny, g.nx, val_x, val_y, h, g.k0,
+                                          direction);
+    check(cudaGetLastError(), "k_g_prepare");
+    check(cufftExecZ2Z(plan3, reinterpret_cast<cufftDoubleComplex*>(work3.ptr),
+                       reinterpret_cast<cufftDoubleComplex*>(work3.ptr), CUFFT_INVERSE),
+          "inverse FFT (G)");
+    k_born_potential<<<blocks(nn), kThreads>>>(work3.ptr, delta.ptr, 2.0 * h * (g.k0 * g.k0),
+                                               norm, nn);
+    check(cudaGetLastError(), "k_born_potential (G)");
+    check(cufftExecZ2Z(plan3, reinterpret_cast<cufftDoubleComplex*>(work3.ptr),
+                       reinterpret_cast<cufftDoubleComplex*>(work3.ptr), CUFFT_FORWARD),
+          "forward FFT (G)");
+    k_g_finish<<<blocks(nn), kThreads>>>(work3.ptr, out, g.ny, g.nx, val_x, val_y, h, g.k0, g.dz,
+                                         direction);
+    check(cudaGetLastError(), "k_g_finish");
+  }
+
+  dcplx dot(const dcplx* u, const dcplx* v, std::size_t m) {
+    return thrust::inner_product(thrust::device, u, u + m, v, dcplx(0.0, 0.0),
+                                 thrust::plus<dcplx>(), ConjMul());
+  }
+
+  // GMRES(30) on the device for (1 − G/2)·y = rhs, start y = rhs, as cpp/src/solver.cpp
+  void gmres_cayley(std::size_t slab, int direction) {
+    const std::size_t m2 = 2 * n();
+    const int restart = 30;
+    const double tol = 1e-12;  // §12, G2
+    if (basis.empty())
+      for (int i = 0; i <= restart; ++i) basis.emplace_back(m2);
+    auto apply = [&](const dcplx* v, dcplx* av) {  // av = v − G v/2
+      born_operator(v, g_tmp.ptr, slab, direction);
+      check(cudaMemcpy(av, v, m2 * sizeof(dcplx), cudaMemcpyDeviceToDevice), "copy");
+      k_axpby<<<blocks(m2), kThreads>>>(av, g_tmp.ptr, dcplx(-0.5, 0.0), dcplx(1.0, 0.0), m2);
+      check(cudaGetLastError(), "k_axpby");
+    };
+    auto norm2 = [&](const dcplx* u) { return std::sqrt(dot(u, u, m2).real()); };
+    check(cudaMemcpy(g_y.ptr, g_rhs.ptr, m2 * sizeof(dcplx), cudaMemcpyDeviceToDevice), "copy");
+    const double bnorm = norm2(g_rhs.ptr);
+    if (bnorm == 0.0) return;
+    const auto m = static_cast<std::size_t>(restart);
+    std::vector<dcplx> h((m + 1) * m), gv(m + 1), cs(m), sn(m);
+    for (int outer = 0; outer < 100; ++outer) {
+      apply(g_y.ptr, g_w.ptr);
+      check(cudaMemcpy(basis[0].ptr, g_rhs.ptr, m2 * sizeof(dcplx), cudaMemcpyDeviceToDevice),
+            "copy");
+      k_axpby<<<blocks(m2), kThreads>>>(basis[0].ptr, g_w.ptr, dcplx(-1.0, 0.0),
+                                        dcplx(1.0, 0.0), m2);
+      const double beta = norm2(basis[0].ptr);
+      if (beta <= tol * bnorm) return;
+      k_axpby<<<blocks(m2), kThreads>>>(basis[0].ptr, basis[0].ptr, dcplx(0.0, 0.0),
+                                        dcplx(1.0 / beta, 0.0), m2);
+      std::fill(gv.begin(), gv.end(), dcplx(0.0, 0.0));
+      gv[0] = beta;
+      std::size_t used = 0;
+      bool done = false;
+      for (std::size_t j = 0; j < m; ++j) {
+        apply(basis[j].ptr, g_w.ptr);
+        for (std::size_t i = 0; i <= j; ++i) {
+          const dcplx hij = dot(basis[i].ptr, g_w.ptr, m2);
+          h[i * m + j] = hij;
+          k_axpby<<<blocks(m2), kThreads>>>(g_w.ptr, basis[i].ptr, -hij, dcplx(1.0, 0.0), m2);
+        }
+        const double hnext = norm2(g_w.ptr);
+        if (hnext > 0.0) {
+          check(cudaMemcpy(basis[j + 1].ptr, g_w.ptr, m2 * sizeof(dcplx), cudaMemcpyDeviceToDevice),
+                "copy");
+          k_axpby<<<blocks(m2), kThreads>>>(basis[j + 1].ptr, basis[j + 1].ptr, dcplx(0.0, 0.0),
+                                            dcplx(1.0 / hnext, 0.0), m2);
+        }
+        for (std::size_t i = 0; i < j; ++i) {
+          const dcplx a = h[i * m + j], c = h[(i + 1) * m + j];
+          h[i * m + j] = cs[i] * a + sn[i] * c;
+          h[(i + 1) * m + j] = -thrust::conj(sn[i]) * a + cs[i] * c;
+        }
+        const dcplx a = h[j * m + j];
+        const double r = std::sqrt(thrust::norm(a) + hnext * hnext);
+        if (thrust::abs(a) == 0.0) {
+          cs[j] = 0.0;
+          sn[j] = 1.0;
+        } else {
+          cs[j] = thrust::abs(a) / r;
+          sn[j] = (a / thrust::abs(a)) * hnext / r;
+        }
+        h[j * m + j] = cs[j] * a + sn[j] * hnext;
+        gv[j + 1] = -thrust::conj(sn[j]) * gv[j];
+        gv[j] = cs[j] * gv[j];
+        used = j + 1;
+        if (thrust::abs(gv[j + 1]) <= tol * bnorm || hnext == 0.0) {
+          done = true;
+          break;
+        }
+      }
+      std::vector<dcplx> y(used);
+      for (std::size_t i = used; i-- > 0;) {
+        dcplx s = gv[i];
+        for (std::size_t k = i + 1; k < used; ++k) s -= h[i * m + k] * y[k];
+        y[i] = s / h[i * m + i];
+      }
+      for (std::size_t i = 0; i < used; ++i)
+        k_axpby<<<blocks(m2), kThreads>>>(g_y.ptr, basis[i].ptr, y[i], dcplx(1.0, 0.0), m2);
+      check(cudaGetLastError(), "GMRES update");
+      if (done) {
+        apply(g_y.ptr, g_w.ptr);
+        check(cudaMemcpy(g_tmp.ptr, g_rhs.ptr, m2 * sizeof(dcplx), cudaMemcpyDeviceToDevice),
+              "copy");
+        k_axpby<<<blocks(m2), kThreads>>>(g_tmp.ptr, g_w.ptr, dcplx(-1.0, 0.0), dcplx(1.0, 0.0),
+                                          m2);
+        if (norm2(g_tmp.ptr) <= tol * bnorm * 10.0) return;
+      }
+    }
+    throw std::runtime_error("GMRES did not converge in the Born step (CUDA)");
+  }
+
+  // target += (flux-conserving Born increment of slab `slab` for `field` of `direction`)·mask
+  void add_born_step(const DeviceBuffer<dcplx>& field, std::size_t slab, int direction,
+                     DeviceBuffer<dcplx>& target, bool masked) {
+    const std::size_t nn = n();
+    const double val_x = 1.0 / (static_cast<double>(g.nx) * g.dx);
+    const double val_y = 1.0 / (static_cast<double>(g.ny) * g.dy);
+    const double norm = 1.0 / static_cast<double>(nn);
+    const dcplx h(host[slab].real(), host[slab].imag());
+    delta.upload(reinterpret_cast<const dcplx*>(fluct.data()) + slab * nn, nn);
+    check(cufftExecZ2Z(plan, reinterpret_cast<cufftDoubleComplex*>(field.ptr),
+                       reinterpret_cast<cufftDoubleComplex*>(g_x.ptr), CUFFT_FORWARD),
+          "forward FFT (Born step)");
+    k_half<<<blocks(nn), kThreads>>>(g_x.ptr, g.ny, g.nx, val_x, val_y, h, g.k0, g.dz, 1.0);
+    check(cudaGetLastError(), "k_half");
+    born_operator(g_x.ptr, g_rhs.ptr, slab, direction);
+    gmres_cayley(slab, direction);
+    k_half<<<blocks(nn), kThreads>>>(g_y.ptr, g.ny, g.nx, val_x, val_y, h, g.k0, g.dz,
+                                     direction > 0 ? 1.0 : -1.0);
+    check(cudaGetLastError(), "k_half");
+    check(cufftExecZ2Z(plan, reinterpret_cast<cufftDoubleComplex*>(g_y.ptr),
+                       reinterpret_cast<cufftDoubleComplex*>(g_y.ptr), CUFFT_INVERSE),
+          "inverse FFT (Born step)");
+    k_born_add<<<blocks(nn), kThreads>>>(target.ptr, g_y.ptr, masked && has_mask ? mask.ptr : nullptr,
+                                         norm, nn);
+    check(cudaGetLastError(), "k_born_add (step)");
   }
 
   // F{field} into `spectrum`
@@ -475,6 +699,11 @@ CudaSolver::CudaSolver(Grid grid, std::vector<cplx> indices, std::vector<std::in
       s.work3 = DeviceBuffer<dcplx>(3 * nn);
       s.sources = DeviceBuffer<dcplx>(6 * nn);
       s.inc = DeviceBuffer<dcplx>(2 * nn);
+      s.g_x = DeviceBuffer<dcplx>(2 * nn);
+      s.g_rhs = DeviceBuffer<dcplx>(2 * nn);
+      s.g_y = DeviceBuffer<dcplx>(2 * nn);
+      s.g_w = DeviceBuffer<dcplx>(2 * nn);
+      s.g_tmp = DeviceBuffer<dcplx>(2 * nn);
       // 2D FFT of three interleaved components (E_x, E_y, E_z): stride 3, distance 1, batch 3
       check(cufftPlanMany(&s.plan3, 2, dims, dims, 3, 1, dims, 3, 1, CUFFT_Z2Z, 3),
             "cufftPlanMany (Born)");
@@ -571,9 +800,10 @@ RunResult CudaSolver::run(const std::vector<cplx>& field_in, int iterations,
       }
       s.apply(0, e, p, p + 1, next);  // leaves F{e} in s.spectrum
       if (s.has_host[p]) {
-        s.born_sources(p, +1);
-        s.add_born_emission(p, +1, next, true);
+        s.add_born_step(e, p, +1, next, true);  // Cayley step (§12)
         if (iterations > 0) {  // R1
+          s.transform(e);
+          s.born_sources(p, +1);
           born_bwd[p + 1] = zero_plane();
           s.add_born_emission(p, -1, born_bwd[p + 1], false);
         }
@@ -597,7 +827,7 @@ RunResult CudaSolver::run(const std::vector<cplx>& field_in, int iterations,
         s.born_sources(p - 1, -1);
         born_fwd[p] = zero_plane();
         s.add_born_emission(p - 1, +1, born_fwd[p], false);  // R3
-        s.add_born_emission(p - 1, -1, e, false);            // R2, referred to plane p
+        s.add_born_step(e, p - 1, -1, e, false);             // R2 (Cayley, §12), at plane p
       }
       if (!interface_host[p - 1].empty()) {
         s.apply(3, e, p, p - 1, next);
