@@ -187,9 +187,11 @@ def test_linearised_potential_halves_the_error(delta_n: float, pol: Literal["TE"
 
 
 @pytest.mark.parametrize("pol", POLARIZATIONS)
-def test_flux_is_conserved_to_first_order_in_step(pol: Literal["TE", "TM"]) -> None:
-    """Lossless δn = 0.01 over 2 µm: the flux with E_z (eq. (5)) is conserved up to the growth
-    O((k₀δn dz)²) per slab (§10), which falls like dz."""
+def test_flux_is_conserved(pol: Literal["TE", "TM"]) -> None:
+    """Lossless δn = 0.01 over 2 µm: the flux with E_z (eq. (5)) is conserved to 10⁻¹⁰ for
+    dz = 0.02 and 0.01 µm. Since B9 (§12, Cayley step) exactly up to the GMRES tolerance; until
+    B8 the explicit step grew it by O((k₀δn dz)²) per slab and this test checked first order in dz
+    (changed with the maintainer's approval, 2026-11-20)."""
     deviations = []
     for px, step_um in ((40, 0.02), (80, 0.01)):
         grid, labels, fluctuation = _grating(0.8, px, step_um, THICKNESS_UM, 0.01)
@@ -197,5 +199,4 @@ def test_flux_is_conserved_to_first_order_in_step(pol: Literal["TE", "TM"]) -> N
         incident = np.zeros((grid.ny, 2), dtype=np.complex128)
         incident[:, _component(pol)] = 1.0
         deviations.append(power_flux(out, grid, N0) / power_flux(incident, grid, N0) - 1)
-    assert abs(deviations[0]) < 1e-3
-    assert abs(deviations[1]) < 0.6 * abs(deviations[0])
+    assert max(abs(d) for d in deviations) < 1e-10
