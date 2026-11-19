@@ -78,6 +78,31 @@ Extinktion der BWPM ist aber auch nicht das physikalische μs, sondern ≈ ∫ �
 am skalaren Born. Für eine Kalibrierung des Monte Carlo ist deshalb das vektorielle Born die
 bessere Referenz als die gemessene Extinktion, solange #37 offen ist.
 
+## Nachtrag: S9b-7 (Scattuccino PR #33)
+
+S9b-7 setzt die Vorschläge 1 und 2 um: `born(vector=True)` mit dem Faktor (1 + cos²θ)/2 und
+`plane_wave_power` mit E_z = −k⊥·E⊥/k_z. Beides stimmt mit diesen Hinweisen überein; das
+gemessene μs/μs,vektoriell = 1,010 passt zur Vorhersage 1,028 (0,978/0,951) im Rahmen der
+Streuung der Realisierungen. Für g_vorwärts schreibt der `xfail`-Test die Abweichung (0,913
+statt 0,955) der Grenze E9 zu. In erster Ordnung sagt K17 für das volle Feld aber das Gewicht
+σ·(1 + cos²θ)/2·r²/cos²θ voraus (`experiments/vector_born_wm.py`, Spalte „volles Feld“):
+
+| l_c (µm) | D | 1 − g Born vektoriell | 1 − g K17 volles Feld | 1 − g Born skalar |
+| --- | --- | --- | --- | --- |
+| 0,5 | 4 | 0,0447 | 0,0537 | 0,0538 |
+| 0,2 | 4 | 0,1384 | 0,1696 | 0,1693 |
+| 1,0 | 4 | 0,0163 | 0,0191 | 0,0191 |
+| 0,5 | 3,5 | 0,0631 | 0,0783 | 0,0783 |
+| 0,5 | 5 | 0,0245 | 0,0275 | 0,0275 |
+
+Das volle Feld der FPWPM ergibt also fast genau das 1 − g des skalaren Born: Der zu starke
+p-Anteil gleicht den Dipolfaktor bei diesen Spektren nahezu aus (zufällig, nicht allgemein).
+Für l_c = 0,5 µm, D = 4 erklärt E9 damit g_vorwärts = 0,946 statt 0,955, also etwa 0,01 der
+gemessenen 0,042. Der Rest von etwa 0,03 war schon mit der alten Messgröße da (0,934 gemessen,
+K17 0,961) und liegt wahrscheinlich an Mehrfachstreuung bei μs·z ≈ 0,4 oder am kleinen Gitter
+(96² × 60); quantitativ nicht geprüft. Vorschlag (als Kommentar in Scattuccino PR #33): g bei
+μs·z ≲ 0,1 auswerten oder gegen den K17-Wert prüfen und den Grund im `xfail` berichtigen.
+
 ## Vorschläge
 
 1. **Referenz vektoriell:** σ_vec(θ, φ) = σ(θ)·(1 − sin²θ cos²φ) für x-Polarisation, für die

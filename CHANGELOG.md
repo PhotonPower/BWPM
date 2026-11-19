@@ -75,3 +75,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - K17, Punkt 8 (Hinweis aus Scattuccino S9b-4): Die Extinktion des kohärenten Feldes in der
   FPWPM folgt der gestreuten Quernorm (∫ σ r²/cos θ dΩ), nicht dem vektoriellen Born; Test je
   Realisierung, μs-Spalte in `experiments/vector_born_wm.py`, Nachtrag in den Hinweisen.
+- Nachtrag zu Scattuccino S9b-7 (PR #33) in `docs/hinweise-scattuccino-s9b2.md`: K17-Vorhersage
+  für 1 − g des vollen Feldes (neue Spalte in `experiments/vector_born_wm.py`); E9 erklärt nur
+  etwa 0,01 der gemessenen g-Abweichung von 0,042.
