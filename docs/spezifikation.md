@@ -275,9 +275,12 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   Erweiterung (Projektor P) ist nicht aus chen2020, sondern aus der dyadischen Green-Funktion
   (chew1995, bibliografisch) und durch K17 (`born_forward_3d`) geprüft.
 - **Streifende und evaneszente Wellen:** Das Inkrement gilt nur für propagierende Zellen
-  (|k⊥| < k); evaneszente Zellen und |k⊥| = k bekommen kein Inkrement (sie erreichen die
-  Vergleichsebene nicht, 1/k_z wäre dort unbeschränkt bzw. singulär). Ob das bei feinen δn
-  nahe dem Grenzwinkel die Leistung verfälscht, misst K18.
+  (|k⊥| < k), für die gestreute und für die einfallende Welle: Evaneszente Zellen und |k⊥| = k
+  bekommen kein Inkrement und tragen nicht zur Quelle V·E_m bei. Grund (B7b, gemessen): An exakt
+  streifenden Gitterpunkten setzt die Regel aus §3 (#25) k_z = i·10⁻¹²·k₀; E_z = −k⊥·Ê⊥/k_z
+  wäre dort 10¹²-mal größer als E⊥, und das Inkrement schaukelte ein zufälliges Feld in 9
+  Scheiben auf 10²⁵ auf. Offen: Für propagierende Wellen nahe dem Grenzwinkel bleiben E_z und
+  1/k_z groß; stabil ist der Schritt, solange k_z ≫ k₀²ñ₀|δn|dz.
 - **Ordnung:** Gegenüber der ersten Born-Näherung der ganzen Schicht (K17-Sollwert) bleiben der
   Fehler der Mittelpunktregel (sinc in chen2020 Gl. (9)) und die Abtastung des Potenzials (ohne
   den Faktor sinc(k_y dy/2) der Pixelzelle), beide zweiter Ordnung in dz bzw. dy. Je Scheibe

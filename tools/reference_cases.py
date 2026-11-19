@@ -208,6 +208,84 @@ def bwpm3d_tilted() -> dict[str, Any]:
     )
 
 
+def fpwpm2d_fluctuation() -> dict[str, Any]:
+    g = Grid2D(ny=48, dy=0.02e-3, dz=0.02e-3, wavelength_um=0.8)
+    nz = 40
+    labels = np.zeros((nz, g.ny), dtype=np.int64)
+    labels[30:] = 1  # interface host -> glass behind the fluctuating region
+    rng = np.random.default_rng(18)
+    fluctuation = np.zeros((nz, g.ny), dtype=np.complex128)
+    fluctuation[2:28] = 0.02 * rng.standard_normal((26, g.ny))
+    fluctuation[10:14, :8] += 0.001j  # weakly absorbing patch
+    field = np.zeros((g.ny, 2), dtype=np.complex128)
+    field[:, 0] = np.exp(-((g.y / (12 * g.dy)) ** 2))
+    field[:, 1] = 0.5j * field[:, 0]
+    mask = absorbing_mask(g, 6 * g.dy, 8)
+    prop = Propagator2D(g, [1.38 + 0j, 1.5 + 0j], labels, 1.38 + 0j, mask, fluctuation=fluctuation)
+    out = prop.run(field, keep=True)
+    return field_reference(
+        "fpwpm2d_fluctuation",
+        "Forward FPWPM in 2D with weak index fluctuations (Born increment, E10/E11), mask.",
+        "tests/test_fluctuation.py (K18); docs/spezifikation.md §10; chen2020",
+        {"ny": g.ny, "dy_mm": g.dy, "dz_mm": g.dz, "wavelength_um": g.wavelength_um},
+        {
+            "indices": np.array([1.38, 1.5]),
+            "labels": labels,
+            "index_before": 1.38 + 0j,
+            "field": field,
+            "mask": mask,
+            "fluctuation": fluctuation,
+        },
+        {"planes": out},
+        _tight(out),
+    )
+
+
+def bwpm3d_fluctuation() -> dict[str, Any]:
+    g = Grid3D(nx=16, ny=12, dx=0.04e-3, dy=0.05e-3, dz=0.04e-3, wavelength_um=0.8)
+    nz = 16
+    labels = np.zeros((nz, g.ny, g.nx), dtype=np.int64)
+    labels[12:] = 1
+    rng = np.random.default_rng(19)
+    fluctuation = np.zeros((nz, g.ny, g.nx), dtype=np.complex128)
+    fluctuation[1:11] = 0.02 * rng.standard_normal((10, g.ny, g.nx)) + 1e-3j
+    r2 = g.x[None, :] ** 2 + g.y[:, None] ** 2
+    field = np.stack([np.exp(-r2 / (3 * g.dx) ** 2), 0.3j * np.exp(-r2 / (3 * g.dx) ** 2)], -1)
+    res = Bidirectional3D(g, [1.38 + 0j, 1.5 + 0j], labels, 1.38 + 0j, fluctuation=fluctuation).run(
+        field, iterations=1, keep=(0, 8, nz)
+    )
+    fwd = np.stack([res.planes[p][0] for p in (0, 8, nz)])
+    bwd = np.stack([res.planes[p][1] for p in (0, 8, nz)])
+    return field_reference(
+        "bwpm3d_fluctuation",
+        "BWPM in 3D, 1 iteration, with weak complex index fluctuations (Born increment, E10/E11).",
+        "tests/test_fluctuation_3d.py (K18); docs/spezifikation.md §10; chen2020",
+        {
+            "nx": g.nx,
+            "ny": g.ny,
+            "dx_mm": g.dx,
+            "dy_mm": g.dy,
+            "dz_mm": g.dz,
+            "wavelength_um": 0.8,
+            "iterations": 1,
+        },
+        {
+            "indices": np.array([1.38, 1.5]),
+            "labels": labels,
+            "index_before": 1.38 + 0j,
+            "field": field,
+            "fluctuation": fluctuation,
+        },
+        {
+            "transmitted": res.transmitted,
+            "reflected": res.reflected,
+            "forward_planes": fwd,
+            "backward_planes": bwd,
+        },
+        _tight(np.concatenate([res.transmitted.ravel(), res.reflected.ravel()])),
+    )
+
+
 CASES: dict[str, Callable[[], dict[str, Any]]] = {
     f.__name__: f
     for f in (
@@ -216,5 +294,7 @@ CASES: dict[str, Callable[[], dict[str, Any]]] = {
         bwpm2d_tilted_silver,
         bwpm2d_slab_exact,
         bwpm3d_tilted,
+        fpwpm2d_fluctuation,
+        bwpm3d_fluctuation,
     )
 }

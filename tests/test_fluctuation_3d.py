@@ -151,3 +151,21 @@ def test_increment_3d_matches_vector_born() -> None:
     for c, f in zip(coarse, fine, strict=True):
         assert c < 1e-2
         assert f < 0.5 * c
+
+
+def test_grazing_grid_points_stay_bounded() -> None:
+    """§10 (found in B7b): on a grid with exactly grazing points (|k⊥| = ñ₀k₀, k_z = i·10⁻¹²·k₀ by
+    the rule of §3, #25) a random field must not be amplified; with E_z = −k⊥·Ê⊥/k_z taken from
+    those points it grew to 10²⁶ within 11 slabs."""
+    rng = np.random.default_rng(2)
+    nx, ny, nz = 8, 16, 11
+    grid = Grid3D(nx, ny, 0.04e-3, 0.05e-3, 0.03e-3, 0.6)  # k_y = 2·2π/(16·0.05 µm) = 1.5·k₀
+    labels = np.ones((nz, ny, nx), dtype=np.int64)
+    fluctuation = 0.03 * rng.normal(size=(nz, ny, nx))
+    field = rng.normal(size=(ny, nx, 2)) + 1j * rng.normal(size=(ny, nx, 2))
+    out = (
+        Bidirectional3D(grid, [1.33 + 0j, 1.5 + 0j], labels, 1.5 + 0j, fluctuation=fluctuation)
+        .run(field, iterations=0)
+        .transmitted
+    )
+    assert np.sum(np.abs(out) ** 2) < 1.1 * np.sum(np.abs(field) ** 2)

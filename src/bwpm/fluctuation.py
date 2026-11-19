@@ -13,7 +13,7 @@ import numpy as np
 import scipy.fft as sfft
 
 from bwpm._types import ComplexArray, FloatArray, IntArray
-from bwpm.interface import longitudinal_wavenumber
+from bwpm.interface import GRAZING_TOLERANCE, longitudinal_wavenumber
 
 
 def slab_hosts(
@@ -56,7 +56,8 @@ def born_increment(
     ΔE⊥ = F⁻¹{e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·F{V·E_m}]⊥} with V = 2ñ₀k₀²δn (E11, #46; chen2020
     eq. (1) has k₀²((ñ₀ + δn)² − ñ₀²), equal to first order),
     E_m = F⁻¹{e^(i k_z dz/2)(Ê⊥, Ê_z)} the full field at the slab midpoint in the host,
-    Ê_z = −k⊥·Ê⊥/k_z (wende2023 eq. (5)), P = I − kkᵀ/k²; propagating waves only (|k⊥| < k).
+    Ê_z = −k⊥·Ê⊥/k_z (wende2023 eq. (5)), P = I − kkᵀ/k²; propagating waves only (|k⊥| < k), for
+    the scattered and for the incident field (E_z of grazing and evanescent waves is unbounded).
     Fields ∝ exp(i(k·r − ωt)).
 
     Args:
@@ -76,14 +77,17 @@ def born_increment(
     kp2 = kx * kx + ky * ky
     kz = longitudinal_wavenumber(host, k0, kp2)
     half = np.exp(1j * kz * dz / 2)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        ez = np.where(kz != 0, -(kx * spectrum[..., 0] + ky * spectrum[..., 1]) / kz, 0.0)
-    full = np.stack([spectrum[..., 0], spectrum[..., 1], ez], axis=-1) * half[..., None]
+    # propagating: |k⊥| < |k| and not grazing by the rule of §3 (#25), where k_z = i·10⁻¹²·k₀
+    k2 = complex(host) ** 2 * k0 * k0
+    propagating = (kp2 < abs(k2)) & (np.abs(k2 - kp2) > GRAZING_TOLERANCE * abs(k2))
+    safe_kz = np.where(propagating, kz, 1.0)
+    ez = np.where(propagating, -(kx * spectrum[..., 0] + ky * spectrum[..., 1]) / safe_kz, 0.0)
+    incident = np.where(propagating, half, 0.0)
+    full = np.stack([spectrum[..., 0], spectrum[..., 1], ez], axis=-1) * incident[..., None]
     middle = sfft.ifftn(full, axes=axes, workers=workers)
     potential = 2 * host * k0**2 * delta_n
     source = sfft.fftn(potential[..., None] * middle, axes=axes, workers=workers)
-    propagating = kp2 < np.real(k * np.conj(k))
-    green = np.where(propagating, half * 1j * dz / (2 * np.where(propagating, kz, 1.0)), 0.0)
+    green = np.where(propagating, half * 1j * dz / (2 * safe_kz), 0.0)
     longitudinal = (kx * source[..., 0] + ky * source[..., 1] + kz * source[..., 2]) / k**2
     projected = np.stack(
         [source[..., 0] - kx * longitudinal, source[..., 1] - ky * longitudinal], axis=-1

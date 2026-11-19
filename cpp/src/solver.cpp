@@ -6,6 +6,7 @@
 #include <numbers>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 #include "pocketfft_hdronly.h"
@@ -24,9 +25,11 @@ double fftfreq(std::size_t i, std::size_t n, double d) {
 }  // namespace
 
 Solver::Solver(Grid grid, std::vector<cplx> indices, std::vector<std::int32_t> labels,
-               std::size_t nz, cplx index_before, std::vector<double> mask, int threads)
+               std::size_t nz, cplx index_before, std::vector<double> mask, int threads,
+               std::vector<cplx> fluctuation)
     : g_(grid), indices_(std::move(indices)), labels_(std::move(labels)), nz_(nz),
-      index_before_(index_before), mask_(std::move(mask)), threads_(std::max(threads, 1)) {
+      index_before_(index_before), mask_(std::move(mask)), threads_(std::max(threads, 1)),
+      fluct_(std::move(fluctuation)) {
   const std::size_t n = g_.ny * g_.nx;
   if (labels_.size() != nz_ * n) throw std::invalid_argument("labels must have shape (nz, ny, nx)");
   if (!mask_.empty() && mask_.size() != n) throw std::invalid_argument("mask must have shape (ny, nx)");
@@ -41,6 +44,22 @@ Solver::Solver(Grid grid, std::vector<cplx> indices, std::vector<std::int32_t> l
       kx_[j * g_.nx + i] = fftfreq(i, g_.nx, g_.dx);
       ky_[j * g_.nx + i] = fftfreq(j, g_.ny, g_.dy);
     }
+  has_host_.assign(nz_, 0);
+  host_.assign(nz_, cplx(0.0, 0.0));
+  if (!fluct_.empty()) {
+    if (fluct_.size() != nz_ * n)
+      throw std::invalid_argument("fluctuation must have the shape of labels (nz, ny, nx)");
+    for (std::size_t j = 0; j < nz_; ++j)
+      for (std::size_t q = 0; q < n; ++q) {
+        if (fluct_[j * n + q] == cplx(0.0, 0.0)) continue;
+        const cplx idx = indices_[static_cast<std::size_t>(labels_[j * n + q])];
+        if (has_host_[j] && host_[j] != idx)
+          throw std::invalid_argument("slab " + std::to_string(j) +
+                                      ": fluctuation must lie in one host index");
+        has_host_[j] = 1;
+        host_[j] = idx;
+      }
+  }
 }
 
 const std::int32_t* Solver::plane_labels(std::size_t p) const {
@@ -93,6 +112,76 @@ void Solver::fft(std::vector<cplx>& data, bool forward) const {
   const double fct = forward ? 1.0 : 1.0 / static_cast<double>(g_.ny * g_.nx);
   pocketfft::c2c<double>(shape, stride, stride, {0, 1}, forward, data.data(), data.data(), fct,
                          static_cast<std::size_t>(threads_));
+}
+
+void Solver::fft_components(std::vector<cplx>& data, std::size_t ncomp, bool forward) const {
+  const pocketfft::shape_t shape{g_.ny, g_.nx, ncomp};
+  const auto c = static_cast<std::ptrdiff_t>(sizeof(cplx));
+  const auto nc = static_cast<std::ptrdiff_t>(ncomp);
+  const pocketfft::stride_t stride{static_cast<std::ptrdiff_t>(g_.nx) * nc * c, nc * c, c};
+  const double fct = forward ? 1.0 : 1.0 / static_cast<double>(g_.ny * g_.nx);
+  pocketfft::c2c<double>(shape, stride, stride, {0, 1}, forward, data.data(), data.data(), fct,
+                         static_cast<std::size_t>(threads_));
+}
+
+void Solver::add_born_increment(const std::vector<cplx>& in, std::size_t slab,
+                                std::vector<cplx>& out) {
+  // ΔE⊥ = F⁻¹{e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·F{V·E_m}]⊥}, V = 2ñ₀k₀²δn (E11), E_m the full
+  // field (E_z from wende2023 eq. (5)) at the slab midpoint in the host; propagating waves only,
+  // incident and scattered (E_z of grazing and evanescent waves is unbounded).
+  const std::size_t n = g_.ny * g_.nx;
+  const cplx host = host_[slab];
+  const cplx k = host * g_.k0;
+  const cplx k2 = k * k;
+  const cplx host2k2 = host * host * g_.k0 * g_.k0;  // as ñ²k₀² in longitudinal_wavenumber
+  const double kabs2 = std::abs(host2k2);
+  const cplx im(0.0, 1.0);
+  std::vector<cplx> spectrum = in;
+  fft(spectrum, true);
+  std::vector<cplx> kz(n), half(n), work(3 * n);
+  std::vector<char> prop(n);
+#pragma omp parallel for num_threads(threads_) schedule(static)
+  for (long long q = 0; q < static_cast<long long>(n); ++q) {
+    const double kx = kx_[q], ky = ky_[q];
+    kz[q] = longitudinal_wavenumber(host, g_.k0, kx * kx + ky * ky);
+    half[q] = std::exp(im * kz[q] * g_.dz / 2.0);
+    const double kp2 = kx * kx + ky * ky;
+    const bool propagating =
+        kp2 < kabs2 && std::abs(host2k2 - kp2) > kGrazingTolerance * kabs2;  // §3 (#25)
+    prop[q] = propagating;
+    const cplx ex = spectrum[2 * q], ey = spectrum[2 * q + 1];
+    const cplx ez = propagating ? -(kx * ex + ky * ey) / kz[q] : cplx(0.0, 0.0);
+    const cplx incident = propagating ? half[q] : cplx(0.0, 0.0);
+    work[3 * q] = ex * incident;
+    work[3 * q + 1] = ey * incident;
+    work[3 * q + 2] = ez * incident;
+  }
+  fft_components(work, 3, false);
+  const cplx* delta = fluct_.data() + slab * n;
+  const cplx scale = 2.0 * host * g_.k0 * g_.k0;
+#pragma omp parallel for num_threads(threads_) schedule(static)
+  for (long long q = 0; q < static_cast<long long>(n); ++q) {
+    const cplx v = scale * delta[q];
+    for (int c = 0; c < 3; ++c) work[3 * q + c] = v * work[3 * q + c];
+  }
+  fft_components(work, 3, true);
+  std::vector<cplx> inc(2 * n);
+#pragma omp parallel for num_threads(threads_) schedule(static)
+  for (long long q = 0; q < static_cast<long long>(n); ++q) {
+    const double kx = kx_[q], ky = ky_[q];
+    const cplx green =
+        prop[q] ? half[q] * (im * g_.dz / (2.0 * kz[q])) : cplx(0.0, 0.0);
+    const cplx s0 = work[3 * q], s1 = work[3 * q + 1], s2 = work[3 * q + 2];
+    const cplx longitudinal = (kx * s0 + ky * s1 + kz[q] * s2) / k2;
+    inc[2 * q] = green * (s0 - kx * longitudinal);
+    inc[2 * q + 1] = green * (s1 - ky * longitudinal);
+  }
+  fft(inc, false);
+  for (std::size_t q = 0; q < n; ++q) {
+    const double m = mask_.empty() ? 1.0 : mask_[q];
+    out[2 * q] += inc[2 * q] * m;
+    out[2 * q + 1] += inc[2 * q + 1] * m;
+  }
 }
 
 void Solver::apply(Kind kind, const std::vector<cplx>& in, std::size_t p_r, std::size_t p_s,
@@ -186,6 +275,7 @@ RunResult Solver::run(const std::vector<cplx>& field_in, int iterations,
         src_bwd[p] = store(next, interface[p]);
       }
       apply(FwdT, e, p, p + 1, next);
+      if (has_host_[p]) add_born_increment(e, p, next);
       e.swap(next);
       if (auto f = src_fwd.find(p + 1); f != src_fwd.end()) add(e, f->second);
       if (keep_set.count(p + 1)) res.forward[p + 1] = e;

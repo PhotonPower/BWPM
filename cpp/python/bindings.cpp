@@ -126,17 +126,25 @@ PYBIND11_MODULE(_core, m) {
       "R of wende2023 eqs. (8), (9) without propagation factor, shape (..., 2, 2).");
   using F64Opt = std::optional<py::array_t<double, py::array::c_style | py::array::forcecast>>;
   py::class_<bwpm::Solver>(m, "Solver",
-                           "FPWPM/BWPM on the CPU in 2D (nx = 1) and 3D (stage B4c).")
+                           "FPWPM/BWPM on the CPU in 2D (nx = 1) and 3D (stages B4c, B7b).")
       .def(py::init([](std::size_t ny, std::size_t nx, double dy, double dx, double dz, double k0,
                        const C128& indices, const I32& labels, cplx index_before,
-                       const F64Opt& mask, int threads) {
+                       const F64Opt& mask, int threads, const std::optional<C128>& fluctuation) {
              SolverInput in = solver_input(ny, nx, dy, dx, dz, k0, indices, labels, mask);
+             std::vector<cplx> delta;
+             if (fluctuation) {
+               if (fluctuation->ndim() != 3 || fluctuation->shape(0) != labels.shape(0) ||
+                   fluctuation->shape(1) != labels.shape(1) ||
+                   fluctuation->shape(2) != labels.shape(2))
+                 throw std::invalid_argument("fluctuation must have the shape of labels");
+               delta.assign(fluctuation->data(), fluctuation->data() + fluctuation->size());
+             }
              return bwpm::Solver(in.grid, std::move(in.indices), std::move(in.labels), in.nz,
-                                 index_before, std::move(in.mask), threads);
+                                 index_before, std::move(in.mask), threads, std::move(delta));
            }),
            py::arg("ny"), py::arg("nx"), py::arg("dy"), py::arg("dx"), py::arg("dz"), py::arg("k0"),
            py::arg("indices"), py::arg("labels"), py::arg("index_before"), py::arg("mask"),
-           py::arg("threads") = 1)
+           py::arg("threads") = 1, py::arg("fluctuation") = py::none())
       .def("run", &run_solver<bwpm::Solver>, py::arg("field"), py::arg("iterations"),
            py::arg("keep") = std::vector<std::size_t>{});
 
