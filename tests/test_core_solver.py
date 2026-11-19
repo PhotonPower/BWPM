@@ -39,7 +39,12 @@ def _propagator_2d(d: dict) -> Propagator2D:  # type: ignore[type-arg]
     grid = Grid2D(p["ny"], p["dy_mm"], p["dz_mm"], p["wavelength_um"])
     mask = d["inputs"].get("mask")
     return Propagator2D(
-        grid, list(d["inputs"]["indices"]), d["inputs"]["labels"], d["inputs"]["index_before"], mask
+        grid,
+        list(d["inputs"]["indices"]),
+        d["inputs"]["labels"],
+        d["inputs"]["index_before"],
+        mask,
+        fluctuation=d["inputs"].get("fluctuation"),
     )
 
 
@@ -136,3 +141,81 @@ def test_2d_core_equals_reference_class() -> None:
     core = fast.run_2d(prop, d["inputs"]["field"], iterations=3)
     assert np.max(np.abs(core.transmitted - ref.transmitted)) < 1e-12
     assert np.allclose(core.energy_residual, ref.energy_residual, rtol=1e-10, atol=1e-13)
+
+
+def test_fpwpm2d_fluctuation() -> None:
+    """B7b (K18): Born increment in the 2D core against the reference file."""
+    d = _load("fpwpm2d_fluctuation")
+    res = fast.run_2d(_propagator_2d(d), d["inputs"]["field"], iterations=0, keep=True)
+    assert res.forward is not None
+    _close(res.forward, d["expected"]["planes"], d["tolerance"])
+
+
+def test_bwpm3d_fluctuation() -> None:
+    """B7b (K18): Born increment in the 3D core (forward steps, one iteration)."""
+    d = _load("bwpm3d_fluctuation")
+    p = d["parameters"]
+    grid = Grid3D(p["nx"], p["ny"], p["dx_mm"], p["dy_mm"], p["dz_mm"], p["wavelength_um"])
+    solver = Bidirectional3D(
+        grid,
+        list(d["inputs"]["indices"]),
+        d["inputs"]["labels"],
+        d["inputs"]["index_before"],
+        fluctuation=d["inputs"]["fluctuation"],
+    )
+    nz = d["inputs"]["labels"].shape[0]
+    res = fast.run_3d(solver, d["inputs"]["field"], iterations=1, keep=(0, 8, nz))
+    _close(res.transmitted, d["expected"]["transmitted"], d["tolerance"])
+    _close(res.reflected, d["expected"]["reflected"], d["tolerance"])
+    fwd = np.stack([res.planes[q][0] for q in (0, 8, nz)])
+    bwd = np.stack([res.planes[q][1] for q in (0, 8, nz)])
+    _close(fwd, d["expected"]["forward_planes"], d["tolerance"])
+    _close(bwd, d["expected"]["backward_planes"], d["tolerance"])
+
+
+@pytest.mark.parametrize("seed", [1, 2])
+def test_random_fluctuations_equal_python(seed: int) -> None:
+    """Random structure with δn in one host per slab, odd and even sizes, with and without mask."""
+    rng = np.random.default_rng(seed)
+    nx, ny, nz = (15, 12, 9) if seed % 2 else (8, 16, 11)
+    grid = Grid3D(nx, ny, 0.04e-3, 0.05e-3, 0.03e-3, 0.6)
+    labels = rng.integers(0, 2, size=(nz, 1, 1)) * np.ones((1, ny, nx), dtype=np.int64)
+    labels[nz // 2] = rng.integers(0, 3, size=(ny, nx))
+    indices = [1.33 + 0j, 1.5 + 0j, 2.1 + 0.01j]
+    fluctuation = 0.03 * rng.normal(size=(nz, ny, nx)) + 0.002j * rng.normal(size=(nz, ny, nx))
+    fluctuation[nz // 2] = 0.0  # mixed slab: no single host
+    field = rng.normal(size=(ny, nx, 2)) + 1j * rng.normal(size=(ny, nx, 2))
+    mask = absorbing_mask_2d(grid, 2 * grid.dx) if seed == 2 else None
+    ref = Bidirectional3D(grid, indices, labels, 1.33 + 0j, mask, fluctuation=fluctuation).run(
+        field, 1, keep=(0, 5, nz)
+    )
+    core = fast.run_3d(
+        Bidirectional3D(grid, indices, labels, 1.33 + 0j, mask, fluctuation=fluctuation),
+        field,
+        1,
+        (0, 5, nz),
+    )
+    scale = 1e-12 * float(np.max(np.abs(field)))
+    assert np.max(np.abs(core.transmitted - ref.transmitted)) < scale
+    assert np.max(np.abs(core.reflected - ref.reflected)) < scale
+    for q in (0, 5, nz):
+        for j in (0, 1):
+            assert np.max(np.abs(core.planes[q][j] - ref.planes[q][j])) < scale
+
+
+def test_zero_fluctuation_is_bit_identical_in_core() -> None:
+    """δn ≡ 0 in the core gives exactly the core result without δn."""
+    d = _load("bwpm2d_tilted_silver")
+    prop = _propagator_2d(d)
+    zero = Propagator2D(
+        prop.grid,
+        prop.indices,
+        prop.labels,
+        prop.index_before,
+        prop.mask,
+        fluctuation=np.zeros(np.asarray(prop.labels).shape),
+    )
+    a = fast.run_2d(prop, d["inputs"]["field"], iterations=2)
+    b = fast.run_2d(zero, d["inputs"]["field"], iterations=2)
+    assert np.array_equal(a.transmitted, b.transmitted)
+    assert np.array_equal(a.reflected, b.reflected)

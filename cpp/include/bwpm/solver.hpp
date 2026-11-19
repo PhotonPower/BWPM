@@ -4,6 +4,8 @@
 // Specification: docs/spezifikation.md, sections 4 and 5; table 1 of wende2023 (i = 1 … 4).
 // Planes p = 0 … nz, plane p belongs to slab p − 1 (plane 0 to `index_before`); fields (ny, nx, 2)
 // in C order with components (E_x, E_y); centred grids; k in 1/mm, lengths in mm.
+// Optional weak index fluctuations δn (nz, ny, nx) add the vector Born increment in the forward
+// transmission steps (stage B7b; docs/spezifikation.md §10, decisions E10/E11; bwpm/fluctuation.py).
 #pragma once
 
 #include <complex>
@@ -32,9 +34,11 @@ struct RunResult {
 
 class Solver {
  public:
-  // labels: (nz, ny, nx) material labels into `indices`; mask: (ny, nx) or empty (no mask).
+  // labels: (nz, ny, nx) material labels into `indices`; mask: (ny, nx) or empty (no mask);
+  // fluctuation: δn (nz, ny, nx) or empty, within a slab only on pixels of one index (the host).
   Solver(Grid grid, std::vector<cplx> indices, std::vector<std::int32_t> labels, std::size_t nz,
-         cplx index_before, std::vector<double> mask, int threads);
+         cplx index_before, std::vector<double> mask, int threads,
+         std::vector<cplx> fluctuation = {});
 
   // iterations = 0: forward FPWPM only; keep: planes to return.
   RunResult run(const std::vector<cplx>& field_in, int iterations,
@@ -51,6 +55,10 @@ class Solver {
   // out = Σ_pairs I_r,s F⁻¹{M F{in}}; reflections skip equal indices; mask on transmissions.
   void apply(Kind kind, const std::vector<cplx>& in, std::size_t p_r, std::size_t p_s,
              std::vector<cplx>& out);
+  // FFT over (ny, nx) of `ncomp` interleaved components.
+  void fft_components(std::vector<cplx>& data, std::size_t ncomp, bool forward) const;
+  // out += Born increment of slab `slab` computed from the field `in` at its entry (§10).
+  void add_born_increment(const std::vector<cplx>& in, std::size_t slab, std::vector<cplx>& out);
 
   Grid g_;
   std::vector<cplx> indices_;
@@ -61,6 +69,9 @@ class Solver {
   std::vector<double> mask_;
   int threads_;
   std::vector<double> kx_, ky_;  // (ny, nx) frequencies in numpy order
+  std::vector<cplx> fluct_;       // δn (nz, ny, nx) or empty
+  std::vector<char> has_host_;    // per slab: δn ≠ 0 somewhere
+  std::vector<cplx> host_;        // per slab: host index ñ₀
   std::map<Key, std::vector<cplx>> cache_;
 };
 

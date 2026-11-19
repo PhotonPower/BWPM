@@ -9,6 +9,8 @@ core the reference is used. `CORE_AVAILABLE` tells which one is active.
 - `run_3d(solver, field, iterations, keep)`: like `Bidirectional3D.run`, returns `Result3D` (B4c).
 
 `backend`: "auto" (CUDA if built and a device is present, else CPU core), "cpu" or "cuda" (B4d).
+Weak index fluctuations δn (`fluctuation`, B7) run on the CPU core; the CUDA core does not support
+them yet (B7b), so "auto" then uses the CPU core and "cuda" raises.
 """
 
 from __future__ import annotations
@@ -49,17 +51,21 @@ def cuda_available() -> bool:
     return bool(_core is not None and _core.HAS_CUDA and _core.cuda_device_count() > 0)
 
 
-def _solver(backend: str, threads: int | None, device: int, *args: object) -> object:
+def _solver(
+    backend: str, threads: int | None, device: int, fluctuation: object, *args: object
+) -> object:
     """CPU or CUDA solver of the core with the common constructor arguments."""
     assert _core is not None
     if backend not in ("auto", "cpu", "cuda"):
         raise ValueError("backend must be 'auto', 'cpu' or 'cuda'")
-    use_cuda = backend == "cuda" or (backend == "auto" and cuda_available())
+    if fluctuation is not None and backend == "cuda":
+        raise NotImplementedError("fluctuation is not supported by the CUDA core yet (B7b)")
+    use_cuda = backend == "cuda" or (backend == "auto" and fluctuation is None and cuda_available())
     if use_cuda:
         if not cuda_available():
             raise RuntimeError("CUDA backend requested but not built or no device present")
         return _core.CudaSolver(*args, device)
-    return _core.Solver(*args, _threads(threads))
+    return _core.Solver(*args, _threads(threads), fluctuation=fluctuation)
 
 
 def run_2d(
@@ -84,10 +90,14 @@ def run_2d(
     labels = np.asarray(propagator.labels, dtype=np.int32)[:, :, None]
     nz = labels.shape[0]
     mask = None if propagator.mask is None else np.asarray(propagator.mask)[:, None]
+    fluctuation = None
+    if propagator.fluctuation is not None:
+        fluctuation = np.asarray(propagator.fluctuation, dtype=np.complex128)[:, :, None]
     solver: Any = _solver(
         backend,
         threads,
         device,
+        fluctuation,
         g.ny,
         1,
         g.dy,
@@ -135,10 +145,14 @@ def run_3d(
     if _core is None:
         return solver.run(field, iterations, keep)
     g = solver.grid
+    fluctuation = None
+    if solver.fluctuation is not None:
+        fluctuation = np.asarray(solver.fluctuation, dtype=np.complex128)
     core: Any = _solver(
         backend,
         threads,
         device,
+        fluctuation,
         g.ny,
         g.nx,
         g.dy,
