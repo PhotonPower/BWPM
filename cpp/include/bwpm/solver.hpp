@@ -6,7 +6,8 @@
 // in C order with components (E_x, E_y); centred grids; k in 1/mm, lengths in mm.
 // Optional weak index fluctuations δn (nz, ny, nx) scatter with the vector Born approximation in
 // both passes: forward increment and back scattering R1, increment R2 and forward scattering R3 of
-// the backward field (stages B7b, B8b; docs/spezifikation.md §10, §11; bwpm/fluctuation.py).
+// the backward field (stages B7b, B8b; docs/spezifikation.md §10, §11; bwpm/fluctuation.py); the
+// increments in the direction of the incident field use the flux-conserving Cayley step (B9b, §12).
 #pragma once
 
 #include <complex>
@@ -64,6 +65,12 @@ class Solver {
   // Field radiated by the sources in `direction`, at the right slab edge, real space (ny, nx, 2).
   std::vector<cplx> born_emission(const std::vector<cplx>& sources, int direction,
                                   std::size_t slab);
+  // Scattering operator G_d of §12 on a spectrum (ny, nx, 2), into `out`.
+  void born_operator(const std::vector<cplx>& spectrum, int direction, std::size_t slab,
+                     std::vector<cplx>& out);
+  // Flux-conserving Born increment (Cayley form, GMRES) of slab `slab` for the incident field
+  // `in` of `direction`, real space at the right slab edge (§12).
+  std::vector<cplx> born_step(const std::vector<cplx>& in, int direction, std::size_t slab);
 
   Grid g_;
   std::vector<cplx> indices_;

@@ -27,7 +27,7 @@ import numpy as np
 import scipy.fft as sfft
 
 from bwpm._types import ComplexArray, FloatArray, IntArray
-from bwpm.fluctuation import born_emission, born_sources, slab_hosts
+from bwpm.fluctuation import born_emission, born_sources, born_step, slab_hosts
 from bwpm.interface import longitudinal_wavenumber, reflection_matrix, transmission_matrix
 
 
@@ -191,8 +191,9 @@ class Bidirectional3D:
     def _born(
         self, field: ComplexArray, slab: int, direction: int, both: bool = True
     ) -> tuple[ComplexArray, ComplexArray | None] | None:
-        """Born fields of slab `slab` for the incident field of `direction` (§11): radiated
-        forward and (if `both`) backward, at the right slab edge; None without δn in the slab."""
+        """Born fields of slab `slab` for the incident field of `direction`, at the right slab
+        edge: the flux-conserving increment in the same direction (§12) and, if `both`, the field
+        scattered into the opposite direction (R1 or R3, §11); None without δn in the slab."""
         host = self._hosts[slab]
         if host is None or self.fluctuation is None:
             return None
@@ -200,10 +201,13 @@ class Bidirectional3D:
         spectrum = sfft.fft2(field, axes=(0, 1), workers=self.workers)
         delta = np.asarray(np.asarray(self.fluctuation)[slab], dtype=np.complex128)
         args = (host, g.k0, g.dz, self._kx, self._ky, self.workers)
-        sources = born_sources(spectrum, direction, delta, *args)
-        forward = born_emission(sources, +1, *args)
-        back = born_emission(sources, -1, *args) if both else None
-        return forward, back
+        same = born_step(spectrum, direction, delta, *args)
+        opposite = None
+        if both:
+            opposite = born_emission(
+                born_sources(spectrum, direction, delta, *args), -direction, *args
+            )
+        return same, opposite
 
     def _transmit_forward(
         self, field_in: ComplexArray, labels_r: IntArray, labels_s: IntArray, slab: int, back: bool
@@ -290,8 +294,8 @@ class Bidirectional3D:
                 lr, ls = self._plane_labels(p), self._plane_labels(p - 1)
                 born = self._born(e, p - 1, -1)
                 if born is not None:
-                    scattered, increment = born
-                    assert increment is not None
+                    increment, scattered = born
+                    assert scattered is not None
                     e = e + increment  # R2, referred to plane p before the step
                     born_fwd[p] = scattered  # R3
                 if interface[p - 1].any():
