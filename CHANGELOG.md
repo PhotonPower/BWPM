@@ -84,3 +84,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   Spezifikation §10, Quelle chen2020). K18: K17-Sollwerte bei 29–63° auf 0,05–0,23 % getroffen
   (reine FPWPM 7–180 %), Mehrfachstreuung gegen RCWA auf < δn, Fluss erster Ordnung in dz,
   δn = 0 bitgleich.
+- B7a, 3D: Born-Inkrement in `Bidirectional3D(fluctuation=...)` (gemeinsamer Kern
+  `bwpm.fluctuation`); K18 in 3D gegen vektorielles Born an einer Zufallsschicht auf 0,05–0,9 %
+  bis 75° (reine FPWPM 4–57 %), zweiter Ordnung im Schritt.
