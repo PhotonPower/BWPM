@@ -12,3 +12,7 @@ Gleichungsnummern im Code nur aus Quellen mit Volltextprüfung (AGENTS.md, Regel
 | fertig2011 | M. W. Fertig, „Vector wave propagation method“, Dissertation, Universität Mannheim (2011) | bibliografisch (wie oben) | bidirektionale VWPM |
 | brenner1993 | K.-H. Brenner, W. Singer, „Light propagation through microlenses: a new simulation method“, Appl. Opt. 32(26), 4984–4988 (1993) | bibliografisch (wie oben) | skalare WPM |
 | byrnes | S. J. Byrnes, „Multilayer optical calculations“, arXiv:1603.02720v5 | von Raytatouille übernommen (dort Volltext geprüft) | Fresnel Convention A |
+| bornwolf1999 | M. Born, E. Wolf, *Principles of Optics*, 7. Aufl., Cambridge University Press (1999), Kap. 13 (Streuung an inhomogenen Medien, erste Born-Näherung) | bibliografisch | Sollwert K17 (`bwpm.born`) |
+| chew1995 | W. C. Chew, *Waves and Fields in Inhomogeneous Media*, IEEE Press (1995) | bibliografisch | Spektraldarstellung der skalaren und der dyadischen Green-Funktion (K17, Faktor cos²θ für TM) |
+| moharam1995 | M. G. Moharam, E. B. Grann, D. A. Pommet, T. K. Gaylord, „Formulation for stable and efficient implementation of the rigorous coupled-wave analysis of binary gratings“, J. Opt. Soc. Am. A 12(5), 1068–1076 (1995) | bibliografisch | RCWA des Lamellengitters (`tests/rcwa_reference.py`, Prüfung der Born-Referenz) |
+| li1996 | L. Li, „Use of Fourier series in the analysis of discontinuous periodic structures“, J. Opt. Soc. Am. A 13(9), 1870–1876 (1996) | bibliografisch | Faktorisierung für TM in der RCWA |

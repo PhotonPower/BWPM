@@ -28,11 +28,13 @@ Leitlinien:
 | **B3 3D** | (x, y, z) mit Speicherung der Reflexe nur an Grenzflächen; Speicher- und Laufzeitmodell | K10–K12; Messlauf auf dem Rechner des Maintainers (`docs/testfaelle.md`, Messlauf B3) ✅ |
 | **B4 Kern und Ports** | C++/CUDA-Kern, Python-Anbindung, Adapter nach dem Fusionsplan (Abschnitt 6.4), Konformitätstests (6.5); Entwurf und Teilstufen B4a–B4e in [docs/b4-entwurf.md](b4-entwurf.md) | Sollwertdateien aus B1–B3 (`reference/`) bitgleich bzw. in Toleranz ✅ (B4a–B4e, K13–K16) |
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
+| **B6 Große Winkel (#29)** | Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen Brechzahländerungen; Sollwert erste Born-Näherung (E8) | K17 |
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
 vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
 Kern aus B4. B5a (3D ohne Raytatouille) ist gemessen, siehe [docs/pilot-imc-3d.md](pilot-imc-3d.md);
-B5b (Kopplung mit Raytatouille) wartet auf Raytatouille v1.0 und den Port.
+B5b (Kopplung mit Raytatouille) wartet auf Raytatouille v1.0 und den Port. B6 (E8) hängt nicht
+von B5b ab und läuft vorher.
 
 ## Entscheidungen
 
@@ -45,6 +47,7 @@ B5b (Kopplung mit Raytatouille) wartet auf Raytatouille v1.0 und den Port.
 | E5 | Grenzen aus B1/B2 (#8) | Gültigkeitsgrenze festhalten: Reflexe quantitativ nur an z-senkrechten Flächen, an gekippten Flächen nur Richtung, Fokuslage und Phase; gefangene Wellen konvergieren nicht. Gegenvergleich mit hp-FEM später, Abhilfe nur bei Bedarf (2026-11-05) |
 | E6 | Fusionspilot vor B3 | in 2D vorgezogen, mit `fieldtracing` als optionaler Abhängigkeit (Extra `fusion`, Commit festgelegt) (2026-11-05) |
 | E7 | Aufbau des C++/CUDA-Kerns (#16) | D1–D8 aus `docs/b4-entwurf.md`: ein Paket mit optionalem `bwpm._core`, CMake-Presets und scikit-build-core, pybind11, pocketfft/cuFFT, complex128, T/R im GPU-Kernel, OpenMP, CUDA ≥ 12.6 sm_89 (2026-11-05) |
+| E8 | Befund aus Scattuccino S9b-2 (#29) | als Stufe B6 vor B5b prüfen; Sollwert erste Born-Näherung einer dünnen Schicht, selbst gegen Airy und RCWA geprüft (2026-11-19) |
 
 ## Risiken
 

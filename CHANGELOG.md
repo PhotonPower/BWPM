@@ -58,3 +58,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   Transfer-Matrix, Airy, Energieerhaltung, Reziprozität, Determinismus, zentrierter Port.
 - B5a: Auswertung des 3D-Piloten (`bwpm.pilot_imc3d`: Fluss, flussgewichtete Fresnel-Referenz, Fokus auf der Achse) mit Tests; `experiments/b3_scaling.py` meldet Reflexionsgrad gegen Referenz, Fokus des Reflexes und rücklaufenden Fluss an der Facette (K6 in 3D, Messlauf auf dem Server offen, `docs/agent-server-b5a.md`).
 - B5a: Bericht `docs/pilot-imc-3d.md` zum Fusionspilot in 3D (Messlauf und Diagnose auf dem Server); K6 in 3D vom Maintainer abgenommen.
+- B6 (#29): erste Born-Näherung als Sollwert für Streuung an schwachen Schichten
+  (`bwpm.born.born_forward_2d`), geprüft gegen Airy und eine RCWA des Lamellengitters
+  (`tests/rcwa_reference.py`); K17 vergleicht die FPWPM je Winkel und Polarisation, Messskript
+  `experiments/born_angles.py`. Befund: paraxial < 10⁻³; bei großen Winkeln TE-Amplitude zu klein
+  (0,80 bei 46°), für TM fehlt der Faktor cos²θ; konvergiert in dy = dz (Grenze des Verfahrens).

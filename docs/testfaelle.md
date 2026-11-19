@@ -21,6 +21,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K9 | gekippter ebener Silberspiegel | Reflexionsgesetz, Fresnel | Richtung → 2α bei Verfeinerung; Leistung weit unter Fresnel und nicht konvergent (Grenze des Verfahrens) | B2 | ✅ (slow) | `test_mirror.py` |
 | K6 | Faserfacette mit Index-Matching-Kappe, Kette Field Tracing → BWPM → Field Tracing (2D) | Fresnel, Spiegelbild des Luftfokus, analytische Plattenphase | Fokus des Reflexes −82,40 µm (Soll −82,42), Rückreflex an der Facette 4,2 % → 5,6·10⁻⁵, Strehl 0,9972 (Soll 0,9976) | B5 (2D vorgezogen) | ✅ | `test_pilot_imc.py` ([Bericht](pilot-imc-2d.md)) |
 | K6 (3D) | Faserfacette mit Index-Matching-Kappe in 3D, Kette Richards-Wolf-Spektrum → BWPM → Winkelspektrum | Fresnel je Winkel und Polarisation (flussgewichtet), Spiegelbild des Luftfokus, Fresnel Kappe → Kern/Mantel am Facettenfeld | Fokus des Reflexes −82,42 µm, Reflexionsgrad = Referenz, rücklaufender Fluss an der Facette in der Größe der Referenz, Strehl wie 2D | B5a | Hilfsfunktionen ✅, ✅ Messlauf und Diagnose B5a, vom Maintainer abgenommen (2026-11-19) | `test_pilot_imc3d.py`, `experiments/b3_scaling.py` ([Bericht](pilot-imc-3d.md)) |
+| K17 | Streuung an schwachen Lamellengittern (δn = 10⁻⁵) und einer dünnen Zufallsschicht, λ = 0,8 µm, ñ₀ = 1,38, FPWPM | erste Born-Näherung der Pixeltreppe (`bwpm.born`), selbst geprüft gegen Airy und RCWA (Abweichung O(δn)) | Born gegen Airy/RCWA < 10⁻³ und erster Ordnung in δn; FPWPM gegen Born < 10⁻³ paraxial (0,8°), < 1 % bei 29–63° | B6 | ◐ Referenz ✅, paraxial ✅; große Winkel verfehlt (Grenze des Verfahrens, #29), Test `xfail(strict)` | `test_born.py`, `experiments/born_angles.py` |
 
 ## K6 in 3D (B5a)
 
@@ -165,6 +166,58 @@ Befund (nur Zahlen, keine Deutung, nichts angepasst):
    des 3D-Werts, nicht bei 0,90.
 
 Rohdaten (`experiments/out/*.json`) sind nicht eingecheckt.
+
+## K17: Born-Näherung bei großen Winkeln (B6, #29)
+
+Auftrag aus Scattuccino S9b-2 (#29): Streuung zu großen Winkeln in feinem Zufallsmedium etwa 20 %
+unter Born. Prüfweg: erste Born-Näherung der Pixeltreppe als Sollwert (`docs/spezifikation.md`,
+Abschnitt 9), λ = 0,8 µm, ñ₀ = 1,38, δn = 10⁻⁵, Schicht 2 µm, dahinter vier Scheiben Hintergrund;
+2D, senkrechter Einfall, keine Randmaske (periodisch). Befehl:
+`python experiments/born_angles.py` (Python-Referenz, eine Minute auf einem Kern, 2026-11-19).
+
+**Referenz.** Born gegen Airy (Platte) und gegen RCWA (Lamellengitter, 21 Ordnungen; Perioden
+4 / 1,2 / 0,8 / 0,65 µm, TE und TM): Abweichung 0,8–1,9·10⁻⁴ bei δn = 10⁻⁵, zehnfach kleiner bei
+δn = 10⁻⁶ (erste Ordnung in δn). Damit ist auch der Faktor cos²θ für TM belegt.
+
+**Lamellengitter, Ordnung +1, Verhältnis FPWPM/Born (Querfeld), Schritt dy = dz = 0,04 / 0,02 / 0,01 µm:**
+
+| Periode (µm) | Winkel | TE: Betrag | TE: Phase (rad) | TM: Betrag | TM: Phase |
+| --- | --- | --- | --- | --- | --- |
+| 20,0 | 1,7° | 0,9998 / 0,9998 / 0,9998 | +0,0002 / +0,0001 / +0,0001 | 1,0006 / 1,0006 / 1,0006 | wie TE |
+| 4,0 | 8,3° | 0,9948 / 0,9947 / 0,9947 | +0,0024 / +0,0012 / +0,0007 | 1,0162 / 1,0160 / 1,0160 | wie TE |
+| 1,2 | 28,9° | 0,9318 / 0,9305 / 0,9302 | +0,0286 / +0,0144 / +0,0072 | 1,2155 / 1,2138 / 1,2133 | wie TE |
+| 0,8 | 46,4° | 0,7998 / 0,7971 / 0,7964 | +0,0765 / +0,0383 / +0,0192 | 1,6841 / 1,6784 / 1,6770 | wie TE |
+| 0,65 | 63,1° | 0,5804 / 0,5773 / 0,5765 | +0,1443 / +0,0722 / +0,0362 | 2,8367 / 2,8217 / 2,8179 | wie TE |
+
+**Dünne Zufallsschicht** (gaußsches Zufallsfeld mit gaußscher Korrelation l_c, ±2σ auf 16 Stufen,
+Fenster 40 µm, Seed 29), gestreute Leistung je Winkelbereich, FPWPM/Born:
+
+| l_c (µm) | Schritt (µm) | Pol. | 2–10° | 10–20° | 20–30° | 30–40° | 40–50° | 50–60° | 60–75° |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0,2 | 0,04 | TE | 0,992 | 0,974 | 0,908 | 0,803 | 0,656 | 0,509 | 0,270 |
+| 0,2 | 0,02 | TE | 0,991 | 0,974 | 0,906 | 0,799 | 0,649 | 0,506 | 0,266 |
+| 0,2 | 0,04 | TM | 1,025 | 1,096 | 1,314 | 1,770 | 2,632 | 4,213 | 9,869 |
+| 0,2 | 0,02 | TM | 1,025 | 1,094 | 1,312 | 1,765 | 2,628 | 4,177 | 9,811 |
+| 0,5 | 0,04 | TE | 0,993 | 0,973 | 0,915 | 0,821 | 0,688 | 0,514 | 0,278 |
+| 0,5 | 0,02 | TE | 0,993 | 0,972 | 0,913 | 0,818 | 0,683 | 0,514 | 0,270 |
+| 0,5 | 0,04 | TM | 1,021 | 1,086 | 1,288 | 1,676 | 2,429 | 4,095 | 9,447 |
+| 0,5 | 0,02 | TM | 1,021 | 1,085 | 1,285 | 1,671 | 2,416 | 4,023 | 9,515 |
+
+**Befund.**
+
+1. Paraxial stimmt die FPWPM mit Born überein (< 10⁻³ bei 0,8°, Test grün).
+2. Bei großen Winkeln ist die TE-Amplitude zu klein (0,93 / 0,80 / 0,58 bei 29° / 46° / 63°). Der
+   Betrag ändert sich mit dy = dz nur in der dritten Stelle und hängt nicht von der Schichtdicke ab
+   (0,5 / 2 / 8 µm bei 29°: jeweils 0,9305); die Abweichung ist eine Eigenschaft des
+   Verfahrens, nicht der Abtastung.
+3. Für TM ist die gestreute Querkomponente E_y gleich der TE-Amplitude (Verhältnis TM/TE = 1/cos²θ
+   auf vier Stellen); der Vektorfaktor cos²θ der dyadischen Green-Funktion fehlt.
+4. Die Phase konvergiert linear in der Schrittweite gegen Born.
+5. Die Zufallsschicht (mit Grenzflächen in z) zeigt dieselben Werte wie die Lamellengitter; die
+   Leistung bei 30–40° liegt für TE bei 0,80 von Born, in der Größe des Befunds aus #29.
+
+Nicht untersucht: Ursache im Vorwärtsschritt, 3D, Leistungserhaltung bei l_c = 0,2 µm (#29) und
+die Born-Referenz in Scattuccino.
 
 ## K7: Randzone der Maske (B1)
 
