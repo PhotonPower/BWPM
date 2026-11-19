@@ -29,15 +29,15 @@ Leitlinien:
 | **B4 Kern und Ports** | C++/CUDA-Kern, Python-Anbindung, Adapter nach dem Fusionsplan (Abschnitt 6.4), Konformitätstests (6.5); Entwurf und Teilstufen B4a–B4e in [docs/b4-entwurf.md](b4-entwurf.md) | Sollwertdateien aus B1–B3 (`reference/`) bitgleich bzw. in Toleranz ✅ (B4a–B4e, K13–K16) |
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
 | **B6 Große Winkel (#29)** | Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen Brechzahländerungen; Sollwert erste Born-Näherung (E8) | K17 ✅ (Ursache erklärt, Grenze E9) |
-| **B7 Schwache Fluktuationen (#37, E10)** | Zerlegung ñ = ñ_Struktur + δn: Struktur weiter mit WPM, δn je Scheibe mit dem vektoriellen Born-Inkrement im Wirtsmedium; B7a Python-Referenz, B7b Kern (C++/CUDA) | B7a: K18 (K17-Sollwerte ohne Anpassung getroffen, Konvergenz in dz; Mehrfachstreuung gegen RCWA; Energie mit E_z; δn = 0 bitgleich, K1–K16 und `reference/` unberührt). B7b: neue Sollwertdateien aus B7a |
+| **B7 Schwache Fluktuationen (#37, E10)** | Zerlegung ñ = ñ_Struktur + δn: Struktur weiter mit WPM, δn je Scheibe mit dem vektoriellen Born-Inkrement im Wirtsmedium; B7a Python-Referenz, B7b Kern (C++/CUDA) | B7a ✅ (abgenommen 2026-11-19): K18 (K17-Sollwerte ohne Anpassung getroffen, Konvergenz in dz; Mehrfachstreuung gegen RCWA; Energie mit E_z; δn = 0 bitgleich, K1–K16 und `reference/` unberührt). B7b: neue Sollwertdateien aus B7a |
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
 vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
 Kern aus B4. B5a (3D ohne Raytatouille) ist gemessen, siehe [docs/pilot-imc-3d.md](pilot-imc-3d.md);
 B5b (Kopplung mit Raytatouille) wartet auf Raytatouille v1.0 und den Port. B6 (E8) hängt nicht
 von B5b ab und lief vorher; abgeschlossen mit der Gültigkeitsgrenze E9. B7 (E10) hängt ebenfalls
-nicht von B5b ab und läuft, solange B5b wartet; zuerst B7a, die Quelle (Multi-Layer-Born) wird
-vor dem ersten Test im Volltext geprüft.
+nicht von B5b ab und läuft, solange B5b wartet; B7a ist abgenommen (Python-Referenz in 2D und
+3D, K18), als Nächstes B7b.
 
 ## Entscheidungen
 
@@ -53,6 +53,7 @@ vor dem ersten Test im Volltext geprüft.
 | E8 | Befund aus Scattuccino S9b-2 (#29) | als Stufe B6 vor B5b prüfen; Sollwert erste Born-Näherung einer dünnen Schicht, selbst gegen Airy und RCWA geprüft (2026-11-19) |
 | E9 | Grenze bei Streuung in große Winkel (#29, K17) | Gültigkeitsgrenze festhalten, das Verfahren bleibt wie wende2023: Streuung an feinen Brechzahländerungen quantitativ (Amplitude < 1 %) nur bis θ ≈ 11° (s) bzw. 6,6° (p); darüber s-Anteil um r = cos θ (3 − cos θ)/2 zu klein, p-Anteil um r/cos²θ zu groß. Erweiterung für schwache Fluktuationen (Variante B3: Born-konsistentes Inkrement für δn) als Vorschlag in #37, nicht beschlossen (2026-11-19) |
 | E10 | Erweiterung für schwache Fluktuationen (#37) | Variante B3 angenommen als Stufe B7: δn je Scheibe mit dem Born-Inkrement F⁻¹{e^(i k_z dz)·i dz/(2k_z)·P⊥·F{V_δn·E}} im homogenen Wirtsmedium, Struktur unverändert mit WPM; mit δn = 0 bitgleich zu heute. Erste Ausbaustufe: Wirtsmedium je Bereich homogen, nur Vorwärtsrichtung, streifende Wellen regularisiert oder auf propagierende beschränkt (in B7a festzulegen); Rückstreuung und δn in Linsen später. E9 gilt weiter für die reine WPM (2026-11-19) |
+| E11 | Potenzial im Born-Inkrement (#46) | linearisiert, V = 2ñ₀k₀²δn statt k₀²((ñ₀ + δn)² − ñ₀²) nach chen2020 Gl. (1): mittlere Phase bei senkrechter Ausbreitung bis zur zweiten Ordnung exakt, Fehler gegen RCWA etwa ein Drittel; in erster Ordnung gleich (2026-11-19) |
 
 ## Risiken
 
