@@ -316,7 +316,7 @@ Gitter aber als δn auf dem homogenen Wirt (`Propagator2D(..., fluctuation=δn)`
    Ordnung δn/ñ₀). Mit dem Potenzial nach chen2020 Gl. (1) käme in Ordnung 0 die Phase
    k₀δn²L/(2ñ₀) dazu; das linearisierte Potenzial (E11, #46) beseitigt sie. Toleranzen im Test:
    δn (allgemein) und δn/2 (E11).
-4. **Fluss mit E_z** (δn = 0,01, 2 µm, verlustfrei): Fluss/Einfall − 1 = 1,4·10⁻⁴ / 6,9·10⁻⁵ (TE)
+4. **Fluss mit E_z** (δn = 0,01, 2 µm, verlustfrei; Stand B7/B8, seit B9 auf 10⁻¹⁴ erhalten, K20): Fluss/Einfall − 1 = 1,4·10⁻⁴ / 6,9·10⁻⁵ (TE)
    und 9,9·10⁻⁵ / 4,9·10⁻⁵ (TM) bei dz = 0,02 / 0,01 µm, also erster Ordnung in dz wie
    vorhergesagt (Normzuwachs O((k₀δn dz)²) je Scheibe).
 
@@ -417,8 +417,9 @@ Schritts bei σ_n ≈ 0,06 (#29).
 2. **Stabilität:** Anteil von |E⊥|² bei cos θ < 0,3 für dz = 0,1 und 0,05 µm (ein Medium, quer
    0,1 µm) innerhalb 30 %.
 3. **Absorption:** δn = iκ, κ = 10⁻³, 5 µm: Fluss fällt wie e^(−2k₀κL) auf 10⁻⁶ (vorher 1,5·10⁻⁵).
-4. **K17–K19** bleiben grün; der Test zur Flusserhaltung erster Ordnung in K18 prüfte eine
-   Eigenschaft des expliziten Schritts (siehe unten).
+4. **K17–K19** bleiben grün. Der Test zur Flusserhaltung in K18 prüfte eine Eigenschaft des
+   expliziten Schritts (Zuwachs erster Ordnung in dz); mit Freigabe des Maintainers (2026-11-20)
+   fordert er jetzt Flusserhaltung auf 10⁻¹⁰ (`test_flux_is_conserved`, gemessen ≈ 10⁻¹⁴).
 5. **Kern:** CPU-Kern mit eigenem GMRES gegen Python auf 10⁻¹⁰ (gemessen 3·10⁻¹⁵), CUDA (GMRES auf
    dem Gerät) gegen CPU auf 10⁻¹⁰; Fluss im Kern auf 10⁻⁸. Laufzeit je Scheibe mit δn bei 256²
    (RTX 2080): CUDA 10–11 ms, CPU 90–100 ms (expliziter Schritt 6,8 / 29 ms, 16 Stufen 100 / 514 ms).
