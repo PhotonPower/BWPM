@@ -121,3 +121,4 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B9a/B9b: flusserhaltender Born-Schritt (Strang-Cayley, GMRES bis 10⁻¹²) in Python, CPU- und
   CUDA-Kern; ersetzt das explizite Inkrement vorwärts und R2. K20: Fluss am Medium aus #29 auf
   10⁻¹³ statt +3 bis +40 %. Sollwertdateien für δn neu erzeugt; SciPy ≥ 1.12 (GMRES mit `rtol`).
+- B9 abgenommen (2026-11-20).
