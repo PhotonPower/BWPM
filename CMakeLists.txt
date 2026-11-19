@@ -42,6 +42,10 @@ if(BWPM_ENABLE_CUDA)
   find_package(CUDAToolkit 12.6 REQUIRED)
   add_library(bwpm_cuda STATIC cpp/src/solver_cuda.cu)
   target_include_directories(bwpm_cuda PUBLIC cpp/include)
+  if(MSVC)
+    # CCCL of CUDA 13 rejects the traditional MSVC preprocessor
+    target_compile_options(bwpm_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Zc:preprocessor>)
+  endif()
   # static CUDA runtime; cuFFT either static or found at run time through the RPATH of _core
   if(BWPM_CUFFT_STATIC)
     target_link_libraries(bwpm_cuda PUBLIC CUDA::cudart_static CUDA::cufft_static)
