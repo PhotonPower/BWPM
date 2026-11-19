@@ -140,3 +140,22 @@ def test_large_angle_deviation_converges_in_step() -> None:
     first, second = abs(ratios[1] - ratios[0]), abs(ratios[2] - ratios[1])
     assert second < 0.7 * first
     assert abs(ratios[2] - 1) > 10 * second
+
+
+@pytest.mark.parametrize("pol", POLARIZATIONS)
+@pytest.mark.parametrize("period_um", [4.0, 1.2, 0.8, 0.65])
+def test_fpwpm_deviation_matches_first_order_analysis(
+    period_um: float, pol: Literal["TE", "TM"]
+) -> None:
+    """Cause of the deviation (docs/spezifikation.md §9): first-order analysis of the FPWPM step.
+
+    TE: FPWPM/Born = cos θ·(3 − cos θ)/2 (obliquity of the incident instead of the scattered wave
+    in the bulk, cos θ, plus the Fresnel factors at entry and exit); TM: E_y as TE without the
+    factor cos²θ, (3 − cos θ)/(2 cos θ). The phase error is first order in the step, so the ratio
+    is extrapolated from dy = dz = 0.02 and 0.01 µm (Richardson).
+    """
+    c = float(np.cos(np.radians(_angle_deg(period_um))))
+    expected = c * (3 - c) / 2 if pol == "TE" else (3 - c) / (2 * c)
+    coarse = _fpwpm_over_born(period_um, round(period_um / 0.02), 0.02, 1e-5, pol)
+    fine = _fpwpm_over_born(period_um, round(period_um / 0.01), 0.01, 1e-5, pol)
+    assert abs((2 * fine - coarse) / expected - 1) < 1e-3

@@ -21,7 +21,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K9 | gekippter ebener Silberspiegel | Reflexionsgesetz, Fresnel | Richtung → 2α bei Verfeinerung; Leistung weit unter Fresnel und nicht konvergent (Grenze des Verfahrens) | B2 | ✅ (slow) | `test_mirror.py` |
 | K6 | Faserfacette mit Index-Matching-Kappe, Kette Field Tracing → BWPM → Field Tracing (2D) | Fresnel, Spiegelbild des Luftfokus, analytische Plattenphase | Fokus des Reflexes −82,40 µm (Soll −82,42), Rückreflex an der Facette 4,2 % → 5,6·10⁻⁵, Strehl 0,9972 (Soll 0,9976) | B5 (2D vorgezogen) | ✅ | `test_pilot_imc.py` ([Bericht](pilot-imc-2d.md)) |
 | K6 (3D) | Faserfacette mit Index-Matching-Kappe in 3D, Kette Richards-Wolf-Spektrum → BWPM → Winkelspektrum | Fresnel je Winkel und Polarisation (flussgewichtet), Spiegelbild des Luftfokus, Fresnel Kappe → Kern/Mantel am Facettenfeld | Fokus des Reflexes −82,42 µm, Reflexionsgrad = Referenz, rücklaufender Fluss an der Facette in der Größe der Referenz, Strehl wie 2D | B5a | Hilfsfunktionen ✅, ✅ Messlauf und Diagnose B5a, vom Maintainer abgenommen (2026-11-19) | `test_pilot_imc3d.py`, `experiments/b3_scaling.py` ([Bericht](pilot-imc-3d.md)) |
-| K17 | Streuung an schwachen Lamellengittern (δn = 10⁻⁵) und einer dünnen Zufallsschicht, λ = 0,8 µm, ñ₀ = 1,38, FPWPM | erste Born-Näherung der Pixeltreppe (`bwpm.born`), selbst geprüft gegen Airy und RCWA (Abweichung O(δn)) | Born gegen Airy/RCWA < 10⁻³ und erster Ordnung in δn; FPWPM gegen Born < 10⁻³ paraxial (0,8°), < 1 % bei 29–63° | B6 | ◐ Referenz ✅, paraxial ✅; große Winkel verfehlt (Grenze des Verfahrens, #29), Test `xfail(strict)` | `test_born.py`, `experiments/born_angles.py` |
+| K17 | Streuung an schwachen Lamellengittern (δn = 10⁻⁵) und einer dünnen Zufallsschicht, λ = 0,8 µm, ñ₀ = 1,38, FPWPM | erste Born-Näherung der Pixeltreppe (`bwpm.born`), selbst geprüft gegen Airy und RCWA (Abweichung O(δn)) | Born gegen Airy/RCWA < 10⁻³ und erster Ordnung in δn; FPWPM gegen Born < 10⁻³ paraxial (0,8°), < 1 % bei 29–63° | B6 | ◐ Referenz ✅, paraxial ✅, Ursache analytisch erklärt ✅; große Winkel verfehlt (Grenze des Verfahrens, #29), Test `xfail(strict)` | `test_born.py`, `experiments/born_angles.py` |
 
 ## K6 in 3D (B5a)
 
@@ -216,8 +216,23 @@ Fenster 40 µm, Seed 29), gestreute Leistung je Winkelbereich, FPWPM/Born:
 5. Die Zufallsschicht (mit Grenzflächen in z) zeigt dieselben Werte wie die Lamellengitter; die
    Leistung bei 30–40° liegt für TE bei 0,80 von Born, in der Größe des Befunds aus #29.
 
-Nicht untersucht: Ursache im Vorwärtsschritt, 3D, Leistungserhaltung bei l_c = 0,2 µm (#29) und
-die Born-Referenz in Scattuccino.
+6. **Ursache** (`docs/spezifikation.md`, Abschnitt 9): In erster Ordnung in δn trägt die Quelle der
+   Streuung im Schritt den Schrägfaktor der einfallenden statt der gestreuten Welle (Faktor cos θ),
+   dazu kommen die Fresnel-Faktoren an Ein- und Austritt. Vorhersage TE cos θ (3 − cos θ)/2, TM
+   (3 − cos θ)/(2 cos θ); gemessen nach Extrapolation im Schritt (dy = dz = 0,02 und 0,01 µm):
+
+   | Winkel | TE: Formel | TE: FPWPM | TM: Formel | TM: FPWPM |
+   | --- | --- | --- | --- | --- |
+   | 8,3° | 0,99467 | 0,99464 | 1,01601 | 1,01598 |
+   | 28,9° | 0,93004 | 0,92987 | 1,21317 | 1,21294 |
+   | 46,4° | 0,79624 | 0,79603 | 1,67666 | 1,67620 |
+   | 63,1° | 0,57617 | 0,57648 | 2,81632 | 2,81779 |
+   | 75,0° | 0,35354 | 0,35413 | 5,31722 | 5,32588 |
+
+   Unter 1 % Abweichung bis θ ≈ 11° (TE) bzw. 6,6° (TM).
+
+Nicht untersucht: 3D, schräger Einfall (die Herleitung sagt dort k_z(k_y)/k_z(q) im Volumen voraus),
+Leistungserhaltung bei l_c = 0,2 µm (#29) und die Born-Referenz in Scattuccino.
 
 ## K7: Randzone der Maske (B1)
 
