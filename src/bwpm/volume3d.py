@@ -12,6 +12,10 @@ intermediate planes are kept only for requested planes.
 
 Fields have shape (ny, nx, 2) with components (E_x, E_y); grids are centred,
 x_m = (m − nx//2)·dx, y_n = (n − ny//2)·dy (mm).
+
+Optionally, weak index fluctuations δn are added in the forward transmission steps with the vector
+Born increment (`bwpm.fluctuation`, docs/spezifikation.md §10, decision E10); the backward sweep
+does not scatter at δn (no back scattering in the first stage of B7).
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ import numpy as np
 import scipy.fft as sfft
 
 from bwpm._types import ComplexArray, FloatArray, IntArray
+from bwpm.fluctuation import born_increment, slab_hosts
 from bwpm.interface import longitudinal_wavenumber, reflection_matrix, transmission_matrix
 
 
@@ -106,6 +111,8 @@ class Bidirectional3D:
         sparse: keep reflection sources only at interface pixels (default) or as full planes.
         workers: threads for the FFTs (scipy.fft); None = one thread, -1 = all cores. The result
             does not depend on it beyond rounding.
+        fluctuation: weak index fluctuation δn per pixel, shape (nz, ny, nx), or None; within a
+            slab only on pixels of one structure index (the host of the Born increment, §10).
     """
 
     grid: Grid3D
@@ -115,6 +122,8 @@ class Bidirectional3D:
     mask: FloatArray | None = None
     sparse: bool = True
     workers: int | None = None
+    fluctuation: FloatArray | ComplexArray | None = None
+    _hosts: list[complex | None] = field(default_factory=list, repr=False)
     _cache: dict[tuple[str, complex, complex], ComplexArray] = field(
         default_factory=dict, repr=False
     )
@@ -127,6 +136,9 @@ class Bidirectional3D:
         if lab.min() < 0 or lab.max() >= len(self.indices):
             raise ValueError("labels must index into `indices`")
         self._kx, self._ky = g.k_grid()
+        self._hosts = [None] * lab.shape[0]
+        if self.fluctuation is not None:
+            self._hosts = slab_hosts(self.indices, lab, self.fluctuation)
 
     def _index(self, label: int) -> complex:
         return self.index_before if label < 0 else self.indices[label]
@@ -175,6 +187,24 @@ class Bidirectional3D:
             out = out * self.mask[..., None]
         return np.asarray(out)
 
+    def _transmit_forward(
+        self, field_in: ComplexArray, labels_r: IntArray, labels_s: IntArray, slab: int
+    ) -> ComplexArray:
+        """Forward transmission through slab `slab`, plus the Born increment of δn (§10)."""
+        out = self._apply("fwd_t", field_in, labels_r, labels_s)
+        host = self._hosts[slab]
+        if host is None or self.fluctuation is None:
+            return out
+        g = self.grid
+        spectrum = sfft.fft2(field_in, axes=(0, 1), workers=self.workers)
+        delta = np.asarray(np.asarray(self.fluctuation)[slab], dtype=np.complex128)
+        increment = born_increment(
+            spectrum, delta, host, g.k0, g.dz, self._kx, self._ky, self.workers
+        )
+        if self.mask is not None:
+            increment = increment * self.mask[..., None]
+        return np.asarray(out + increment)
+
     def _interfaces(self, p_left: int, p_right: int) -> np.ndarray:  # type: ignore[type-arg]
         """Boolean (ny, nx): pixels where the index changes between the two planes' media."""
         a, b = self._plane_labels(p_left), self._plane_labels(p_right)
@@ -221,7 +251,7 @@ class Bidirectional3D:
                 lr, ls = self._plane_labels(p), self._plane_labels(p + 1)
                 if iterations > 0 and interface[p].any():
                     src_bwd[p] = self._store(self._apply("fwd_r", e, lr, ls), interface[p])
-                e = self._apply("fwd_t", e, lr, ls)
+                e = self._transmit_forward(e, lr, ls, p)
                 if p + 1 in src_fwd:
                     e = e + self._restore(src_fwd[p + 1])
                 if p + 1 in keep:
