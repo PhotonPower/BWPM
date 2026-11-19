@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from bwpm._types import ComplexArray, FloatArray, IntArray
-from bwpm.fluctuation import born_increment, slab_hosts
+from bwpm.fluctuation import born_step, slab_hosts
 from bwpm.interface import longitudinal_wavenumber, transmission_matrix
 
 
@@ -155,7 +155,7 @@ class Propagator2D:
             delta = np.asarray(delta_n, dtype=np.complex128)
             g = self.grid
             kx = np.zeros_like(g.ky)
-            out = out + born_increment(spectrum, delta, host, g.k0, g.dz, kx, g.ky)
+            out = out + born_step(spectrum, +1, delta, host, g.k0, g.dz, kx, g.ky)
         if self.mask is not None:
             out = out * self.mask[:, None]
         return np.asarray(out)

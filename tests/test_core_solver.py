@@ -255,3 +255,22 @@ def test_back_scattering_2d_bwpm_equals_python() -> None:
     assert np.max(np.abs(core.transmitted - ref.transmitted)) < scale
     assert np.max(np.abs(core.reflected - ref.reflected)) < scale
     assert np.allclose(core.energy_residual, ref.energy_residual, rtol=1e-10, atol=1e-13)
+
+
+def test_core_born_step_conserves_the_flux() -> None:
+    """B9b (K20): the Cayley step in the CPU core conserves the flux for strong real δn
+    (σ_n = 0.1, 2 µm, dz = 0.1 µm) and equals Python (GMRES tolerance 10⁻¹²)."""
+    import test_stable_born as k20
+
+    grid, field, ref = k20._forward(0.1, 0.1, 2.0, width_um=3.2)
+    n, nz = grid.nx, 20
+    solver = Bidirectional3D(
+        grid,
+        [complex(k20.N0)],
+        np.zeros((nz, n, n), dtype=np.int64),
+        complex(k20.N0),
+        fluctuation=k20._medium(n, nz, 0.1, 0.1, seed=1),
+    )
+    core = fast.run_3d(solver, field, 0, backend="cpu").transmitted
+    assert abs(k20._flux(core, grid) / k20._flux(field, grid) - 1) < 1e-8
+    assert np.max(np.abs(core - ref)) < 1e-10

@@ -177,3 +177,20 @@ def test_back_scattering_with_iterations_equals_cpu_core() -> None:
     scale = 1e-10 * float(np.max(np.abs(field)))
     assert np.max(np.abs(gpu.transmitted - cpu.transmitted)) < scale
     assert np.max(np.abs(gpu.reflected - cpu.reflected)) < scale
+
+
+def test_born_step_on_the_gpu_equals_cpu() -> None:
+    """B9b (K20): Cayley step with GMRES on the GPU against the CPU core, strong δn."""
+    rng = np.random.default_rng(7)
+    n, nz = 24, 12
+    grid = Grid3D(n, n, 0.1e-3, 0.1e-3, 0.1e-3, 0.8)
+    delta = 0.1 * rng.normal(size=(nz, n, n))
+    field = np.zeros((n, n, 2), dtype=np.complex128)
+    field[..., 0] = 1.0
+    solver = Bidirectional3D(
+        grid, [1.38 + 0j], np.zeros((nz, n, n), dtype=np.int64), 1.38 + 0j, fluctuation=delta
+    )
+    cpu = fast.run_3d(solver, field, 1, backend="cpu")
+    gpu = fast.run_3d(solver, field, 1, backend="cuda")
+    assert np.max(np.abs(gpu.transmitted - cpu.transmitted)) < 1e-10
+    assert np.max(np.abs(gpu.reflected - cpu.reflected)) < 1e-10

@@ -34,7 +34,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from bwpm._types import ComplexArray, IntArray
-from bwpm.fluctuation import born_emission, born_sources, slab_hosts
+from bwpm.fluctuation import born_emission, born_sources, born_step, slab_hosts
 from bwpm.fpwpm import Propagator2D, power_flux
 from bwpm.interface import longitudinal_wavenumber, reflection_matrix, transmission_matrix
 
@@ -128,20 +128,21 @@ class Bidirectional2D:
     def _born(
         self, field: ComplexArray, slab: int, direction: int
     ) -> tuple[ComplexArray, ComplexArray] | None:
-        """Born fields of slab `slab` for the incident field of `direction`, §11: (forward, back)
-        radiated fields at the right slab edge, or None without δn in the slab."""
+        """Born fields of slab `slab` for the incident field of `direction`, at the right slab edge:
+        the flux-conserving increment in the same direction (§12) and the field scattered into the
+        opposite direction (R1 or R3, §11); None without δn in the slab."""
         host = self._hosts[slab]
         if host is None or self.p.fluctuation is None:
             return None
         g = self.p.grid
         kx = np.zeros_like(g.ky)
         delta = np.asarray(np.asarray(self.p.fluctuation)[slab], dtype=np.complex128)
-        sources = born_sources(
-            np.fft.fft(field, axis=0), direction, delta, host, g.k0, g.dz, kx, g.ky
-        )
-        forward = born_emission(sources, +1, host, g.k0, g.dz, kx, g.ky)
-        back = born_emission(sources, -1, host, g.k0, g.dz, kx, g.ky)
-        return forward, back
+        spectrum = np.fft.fft(field, axis=0)
+        args = (host, g.k0, g.dz, kx, g.ky)
+        same = born_step(spectrum, direction, delta, *args)
+        sources = born_sources(spectrum, direction, delta, *args)
+        opposite = born_emission(sources, -direction, *args)
+        return same, opposite
 
     # --- passes ----------------------------------------------------------------------------
     def run(
@@ -183,7 +184,7 @@ class Bidirectional2D:
             for p in range(nz, 0, -1):
                 born = self._born(e, p - 1, -1)
                 if born is not None:
-                    scattered, increment = born
+                    increment, scattered = born
                     e = e + increment  # R2, referred to plane p before the step
                     source_fwd[p] += scattered  # R3
                 source_fwd[p] += self._apply("bwd_r", e, lab[p], lab[p - 1])
