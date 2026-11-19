@@ -63,3 +63,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   (`tests/rcwa_reference.py`); K17 vergleicht die FPWPM je Winkel und Polarisation, Messskript
   `experiments/born_angles.py`. Befund: paraxial < 10⁻³; bei großen Winkeln TE-Amplitude zu klein
   (0,80 bei 46°), für TM fehlt der Faktor cos²θ; konvergiert in dy = dz (Grenze des Verfahrens).
+- B6: Ursache der Abweichung analytisch in erster Ordnung (Schrägfaktor der einfallenden statt
+  der gestreuten Welle, Fresnel an Ein- und Austritt): TE cos θ (3 − cos θ)/2, TM
+  (3 − cos θ)/(2 cos θ); Test gegen die FPWPM auf 10⁻³.

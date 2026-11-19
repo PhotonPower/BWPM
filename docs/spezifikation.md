@@ -203,3 +203,18 @@ Brechzahländerungen prüfen, unabhängig vom Verfahren. Code `bwpm.born.born_fo
   TE-Amplitude 0,93 / 0,80 / 0,58 bei 29° / 46° / 63°; für TM ist die Querkomponente E_y gleich
   der TE-Amplitude, der Vektorfaktor cos²θ fehlt (E_y zu groß um 1/cos²θ). Die Phase konvergiert
   linear in der Schrittweite gegen Born. Werte in `docs/testfaelle.md`, K17.
+- **Ursache (Analyse erster Ordnung in δn, Lamellengitter, senkrechter Einfall):** Mit
+  k_z,s ≈ k_z + k₀²ñ₀δn_s/k_z wird der Schritt (wende2023 Gl. (1), r = s im Inneren) zu
+  E(z + dz) = 𝒫E + i k₀²ñ₀ dz · δn(y) · F⁻¹{e^(i k_z dz) Ê(q)/k_z(q)}. Die Quelle der Streuung
+  trägt also den Schrägfaktor 1/k_z(q) der **einfallenden** Welle q; in Born steht 1/k_z(k_y) der
+  **gestreuten** Welle. Für senkrechten Einfall fehlt damit im Volumen der Faktor k/k_z = 1/cos θ.
+  Dazu kommen die Fresnel-Faktoren an Ein- und Austritt (bei k_y = 0: 1 ∓ δn/(2ñ₀), pixelweise
+  maskiert), die zur Ordnung +1 den Beitrag cos θ (1 − cos θ)/2 relativ zu Born liefern. Zusammen:
+
+  TE: FPWPM/Born = cos θ · (3 − cos θ)/2,   TM: FPWPM/Born = (3 − cos θ)/(2 cos θ).
+
+  Für TM verhält sich E_y wie E_x, weil im Inneren T = 1 ist und an Ein- und Austritt bei
+  senkrechtem Einfall TE und TM gleich sind; die Kopplung über die Flächen y = const (stetiges
+  D_y) kommt im Schritt nicht vor. Die Formeln treffen die Rechnung nach Extrapolation im Schritt
+  auf ≤ 5·10⁻⁴ bis 63° (Test `test_fpwpm_deviation_matches_first_order_analysis`). Die Abweichung
+  bleibt unter 1 % bis θ ≈ 11° (TE) bzw. 6,6° (TM).
