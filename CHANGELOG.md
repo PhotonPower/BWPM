@@ -87,3 +87,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B7a, 3D: Born-Inkrement in `Bidirectional3D(fluctuation=...)` (gemeinsamer Kern
   `bwpm.fluctuation`); K18 in 3D gegen vektorielles Born an einer Zufallsschicht auf 0,05–0,9 %
   bis 75° (reine FPWPM 4–57 %), zweiter Ordnung im Schritt.
+- Entscheidung E11 (#46): linearisiertes Potenzial V = 2ñ₀k₀²δn im Born-Inkrement statt
+  chen2020 Gl. (1); Fehler gegen RCWA 0,1–0,8 % statt 0,3–2,1 %, neuer Test in K18. B7a
+  abgenommen.

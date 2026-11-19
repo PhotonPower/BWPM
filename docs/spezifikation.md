@@ -232,6 +232,8 @@ Brechzahländerungen prüfen, unabhängig vom Verfahren. Code `bwpm.born.born_fo
   wende2023. Streuung an feinen Brechzahländerungen ist quantitativ (Amplitude < 1 %) nur bis
   θ ≈ 11° (s) bzw. 6,6° (p). Eine Erweiterung für schwache Fluktuationen δn (Born-konsistentes
   Inkrement im Wirtsmedium, WPM für die Struktur) ist als Vorschlag in #37 beschrieben.
+- **Entscheidung E11 (2026-11-19):** linearisiertes Potenzial V = 2ñ₀k₀²δn im Born-Inkrement
+  statt chen2020 Gl. (1) (#46).
 - **Entscheidung E10 (2026-11-19):** Variante B3 aus #37 angenommen als Stufe B7. Formeln,
   Formeln, Quelle und Regeln für streifende Wellen in Abschnitt 10.
 
@@ -244,7 +246,7 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   unverändert durch den WPM-Schritt (Abschnitt 4). δn ist reell oder komplex, je Voxel gegeben und
   darf in der ersten Ausbaustufe nur in Pixeln ≠ 0 sein, deren Struktur-Brechzahl gleich dem
   Wirtsmedium ñ₀ der Scheibe ist (je Scheibe genau ein Wirtsmedium; sonst Fehler).
-- **Schritt:** mit k = ñ₀k₀, k_z = sqrt(k² − |k⊥|²), V = k₀²((ñ₀ + δn)² − ñ₀²) und dem vollen
+- **Schritt:** mit k = ñ₀k₀, k_z = sqrt(k² − |k⊥|²), V = 2ñ₀k₀²δn (E11) und dem vollen
   Feld in der Scheibenmitte, im Wirtsmedium um dz/2 weiterpropagiert,
   E_m = F⁻¹{e^(i k_z dz/2) (Ê⊥, Ê_z)}, Ê_z = −k⊥·Ê⊥/k_z (wende2023 Gl. (5)):
 
@@ -254,6 +256,11 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   wie `bwpm.born.born_forward_3d`, dort ohne E_z des einfallenden Feldes). Ausgeschrieben für die
   Querkomponenten: [P·Ŝ]⊥ = Ŝ⊥ − k⊥(k⊥·Ŝ⊥ + k_z Ŝ_z)/k², Ŝ = F{V·E}. In 2D (k_x = 0): TE nur
   E_x mit Faktor 1; TM E_y mit (1 − k_y²/k²) Ŝ_y − k_y k_z Ŝ_z/k².
+- **Linearisiertes Potenzial (E11, #46):** chen2020 Gl. (1) entspräche V = k₀²((ñ₀ + δn)² − ñ₀²).
+  Für eine senkrecht laufende Welle in ñ₀ + δn gibt das Inkrement die Phase V/(2k) je Länge, mit
+  chen2020 also k₀δn(1 + δn/(2ñ₀)) statt exakt k₀δn; der Gegenterm −V²/(8k³) käme aus dem
+  Rückwärtsanteil der Green-Funktion, den das Vorwärtsmodell nicht hat. Mit V = 2ñ₀k₀²δn ist die
+  Phase dort bis zur zweiten Ordnung exakt; in erster Ordnung sind beide Formen gleich.
 - **Mittelpunktregel:** chen2020 legt die Felder in die Scheibenmitten (Algorithmus 1); das ist
   die Mittelpunktregel für das z-Integral in Gl. (4). Die Felder der WPM liegen am rechten
   Scheibenrand (Abschnitt 2), daher die halben Schritte. Mit dem Feld am Scheibenanfang und
@@ -276,9 +283,8 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   den Faktor sinc(k_y dy/2) der Pixelzelle), beide zweiter Ordnung in dz bzw. dy. Je Scheibe
   wächst die Norm um O((k₀δn dz)²) (Fluss erster Ordnung in dz). Mehrfachstreuung zwischen
   Scheiben ist enthalten (chen2020), Rückstreuung nicht (E10): Gegen eine exakte Rechnung bleibt
-  ein Fehler der Ordnung δn/ñ₀ (fehlende Fresnel-Reflexe an Ein- und Austritt) und im Mittelwert
-  der Phase k₀ δn²/(2ñ₀)·L (der Term −V²/(8k³) der Ausbreitungskonstante fehlt in der
-  Born-Reihe ohne Rückwärtsanteil).
+  ein Fehler der Ordnung δn/ñ₀ (fehlende Fresnel-Reflexe an Ein- und Austritt); der Fehler der
+  mittleren Phase k₀δn²L/(2ñ₀), den das Potenzial nach chen2020 hätte, entfällt mit E11.
 - **Umsetzung:** `bwpm.fluctuation.born_increment`, eingebunden in
   `bwpm.fpwpm.Propagator2D(..., fluctuation=δn)` (δn der Form (nz, ny)) und in die
   Vorwärtsschritte von `bwpm.volume3d.Bidirectional3D(..., fluctuation=δn)` ((nz, ny, nx)); das
