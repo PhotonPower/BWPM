@@ -1,6 +1,6 @@
 # Entwurf B9: Stabiler, flusserhaltender Born-Schritt
 
-> Entwurf zur Freigabe (2026-11-19). Anlass: Instabilität des expliziten Born-Inkrements bei
+> Freigegeben (2026-11-19): G1–G5 wie vorgeschlagen angenommen. Anlass: Instabilität des expliziten Born-Inkrements bei
 > σ_n ≈ 0,06 (Scattuccino S9b-8, #29, Entscheidung E13). Grundlage: §10, §11, K18, K19.
 
 ## 1. Befund
