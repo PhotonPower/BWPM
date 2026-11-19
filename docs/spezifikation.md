@@ -175,3 +175,31 @@ Offen, zu klären in den genannten Stufen:
 
 - K1 grün (`tests/test_interface.py`), Werte in Abschnitt 3.
 - Spezifikation vom Maintainer freigegeben; Entscheidungen E2–E4 eingetragen.
+
+## 9. Erste Born-Näherung als Prüfweg (B6, K17, #29)
+
+Zweck: Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen
+Brechzahländerungen prüfen, unabhängig vom Verfahren. Code `bwpm.born.born_forward_2d`.
+
+- **Aufbau (2D, k_x = 0):** Pixel (j, n) ist die Zelle z ∈ [j·dz, (j + 1)·dz], |y − y_n| ≤ dy/2
+  mit konstantem ñ; Hintergrund ñ₀, periodisch in y. Ebene Welle e^(i k z), k = ñ₀k₀, senkrecht;
+  TE: E = E_x, TM: E = E_y.
+- **Formel (bornwolf1999, chew1995; nur bibliografisch, daher ohne Gleichungsnummern):** mit
+  V = k₀²(ñ² − ñ₀²) und k_z = sqrt(k² − k_y²), Im k_z ≥ 0, gilt hinter allen Streuern
+
+  E_s,m(z) = i/(2k_z) · Σ_j V̂_j,m · ∫_Scheibe j e^(i k_z (z − z′)) e^(i k z′) dz′,
+
+  V̂_j,m = DFT der Pixelwerte · sinc(k_y dy/2) (exakter Fourier-Koeffizient der Treppe), das
+  z-Integral je Scheibe geschlossen. TM: Die dyadische Green-Funktion liefert für die
+  Querkomponente E_y den Faktor 1 − k_y²/k² = k_z²/k² (= cos²θ).
+- **Prüfung der Referenz:** gegen die Airy-Formel der homogenen Platte und gegen eine RCWA des
+  Lamellengitters (moharam1995, Faktorisierung nach li1996; `tests/rcwa_reference.py`); die
+  Abweichung ist von erster Ordnung in δn (≈ 10⁻⁴ bei δn = 10⁻⁵).
+- **Vergleichsebene:** hinter der Schicht im Hintergrundmedium. In der Schicht fehlt dem
+  vorlaufenden Feld der Reflex; es weicht dort um den Fresnel-Faktor 1 − δn/(2ñ₀) vom
+  Gesamtfeld ab, was bei der Born-Amplitude (∝ δn) ein Fehler erster Ordnung ist.
+- **Gemessene Grenze (K17):** Paraxial stimmt die FPWPM mit Born überein (< 10⁻³ bei 0,8°). Bei
+  großen Winkeln weicht sie ab, konvergiert in dy = dz und unabhängig von der Schichtdicke:
+  TE-Amplitude 0,93 / 0,80 / 0,58 bei 29° / 46° / 63°; für TM ist die Querkomponente E_y gleich
+  der TE-Amplitude, der Vektorfaktor cos²θ fehlt (E_y zu groß um 1/cos²θ). Die Phase konvergiert
+  linear in der Schrittweite gegen Born. Werte in `docs/testfaelle.md`, K17.
