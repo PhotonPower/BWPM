@@ -11,6 +11,9 @@ medium `index_before`; after step j it lies at z₀ + (j + 1)·dz at the right e
 
 Fields are the transverse components (E_x, E_y) on the grid, shape (ny, 2). In 2D with k_x = 0,
 E_x is TE (s) and E_y is the transverse part of TM (p); E_z follows from eq. (5).
+
+Optionally, weak index fluctuations δn on top of the structure are added per slab with the vector
+Born increment (docs/spezifikation.md §10, decision E10; chen2020, eqs. (3)–(9), algorithm 1).
 """
 
 from __future__ import annotations
@@ -91,6 +94,9 @@ class Propagator2D:
         labels: material label per pixel, shape (nz, ny).
         index_before: index of the medium in which the input field lies.
         mask: absorbing mask applied after every step (shape (ny,)), or None.
+        fluctuation: weak index fluctuation δn per pixel, shape (nz, ny), or None. Within a slab,
+            δn may be non-zero only on pixels of one structure index, the host ñ₀ of the Born
+            increment (§10).
     """
 
     grid: Grid2D
@@ -98,7 +104,9 @@ class Propagator2D:
     labels: IntArray
     index_before: complex
     mask: FloatArray | None = None
+    fluctuation: FloatArray | ComplexArray | None = None
     _cache: dict[tuple[complex, complex], ComplexArray] = field(default_factory=dict, repr=False)
+    _hosts: list[complex | None] = field(default_factory=list, repr=False)
 
     def __post_init__(self) -> None:
         labels = np.asarray(self.labels)
@@ -106,6 +114,16 @@ class Propagator2D:
             raise ValueError("labels must have shape (nz, ny)")
         if labels.min() < 0 or labels.max() >= len(self.indices):
             raise ValueError("labels must index into `indices`")
+        self._hosts = [None] * labels.shape[0]
+        if self.fluctuation is not None:
+            delta = np.asarray(self.fluctuation)
+            if delta.shape != labels.shape:
+                raise ValueError("fluctuation must have the shape of labels (nz, ny)")
+            for j in range(labels.shape[0]):
+                hosts = {complex(self.indices[int(label)]) for label in labels[j][delta[j] != 0]}
+                if len(hosts) > 1:
+                    raise ValueError(f"slab {j}: fluctuation must lie in one host index")
+                self._hosts[j] = hosts.pop() if hosts else None
 
     def _operator(self, index_r: complex, index_s: complex) -> ComplexArray:
         """T_r,s(k_y)·𝒫_s with 𝒫_s = exp(i k_z,s dz) (table 1, i = 1), shape (ny, 2, 2)."""
@@ -120,9 +138,18 @@ class Propagator2D:
         return self._cache[key]
 
     def step(
-        self, field_in: ComplexArray, labels_before: IntArray, labels_after: IntArray
+        self,
+        field_in: ComplexArray,
+        labels_before: IntArray,
+        labels_after: IntArray,
+        delta_n: FloatArray | ComplexArray | None = None,
+        host: complex | None = None,
     ) -> ComplexArray:
-        """One step z → z + dz, wende2023 eq. (1): Σ_r,s I_r,s·F⁻¹{T_r,s 𝒫_s F{E}}."""
+        """One step z → z + dz, wende2023 eq. (1): Σ_r,s I_r,s·F⁻¹{T_r,s 𝒫_s F{E}}.
+
+        With `delta_n` (shape (ny,)) and its `host` index, the Born increment of §10 is added
+        before the mask.
+        """
         spectrum = np.fft.fft(field_in, axis=0)
         out = np.zeros_like(spectrum)
         pairs = np.unique(np.stack([labels_before, labels_after], axis=1), axis=0)
@@ -130,9 +157,42 @@ class Propagator2D:
             weight = (labels_before == r) & (labels_after == s)
             op = self._operator(self._index(int(r)), self.indices[int(s)])
             out[weight] = np.fft.ifft(np.einsum("nij,nj->ni", op, spectrum), axis=0)[weight]
+        if delta_n is not None and host is not None:
+            delta = np.asarray(delta_n, dtype=np.complex128)
+            out = out + self._born_increment(spectrum, delta, host)
         if self.mask is not None:
             out = out * self.mask[:, None]
         return np.asarray(out)
+
+    def _born_increment(
+        self, spectrum: ComplexArray, delta_n: ComplexArray, host: complex
+    ) -> ComplexArray:
+        """Vector Born increment of one slab, §10 (chen2020 eq. (9) with sinc ≈ 1, midpoint).
+
+        ΔE⊥ = F⁻¹{e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·F{V·E_m}]⊥}, V = k₀²((ñ₀ + δn)² − ñ₀²),
+        E_m the full field (E_z from eq. (5)) propagated by dz/2 in the host ñ₀, P = I − kkᵀ/k²;
+        propagating waves only. `spectrum` is F{E⊥} at the slab entry, shape (ny, 2).
+        """
+        g = self.grid
+        ky = g.ky
+        k = host * g.k0
+        kz = longitudinal_wavenumber(host, g.k0, ky * ky)
+        half = np.exp(1j * kz * g.dz / 2)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ez = np.where(kz != 0, -ky * spectrum[:, 1] / kz, 0.0)
+        middle = np.fft.ifft(
+            np.stack([spectrum[:, 0], spectrum[:, 1], ez], axis=1) * half[:, None], axis=0
+        )
+        potential = g.k0**2 * ((host + delta_n) ** 2 - host**2)
+        source = np.fft.fft(potential[:, None] * middle, axis=0)
+        propagating = ky * ky < np.real(k * np.conj(k))
+        safe_kz = np.where(propagating, kz, 1.0)
+        green = np.where(propagating, half * 1j * g.dz / (2 * safe_kz), 0.0)
+        projected = np.stack(
+            [source[:, 0], source[:, 1] - ky * (ky * source[:, 1] + kz * source[:, 2]) / k**2],
+            axis=1,
+        )
+        return np.asarray(np.fft.ifft(green[:, None] * projected, axis=0))
 
     def _index(self, label: int) -> complex:
         return self.index_before if label < 0 else self.indices[label]
@@ -147,10 +207,15 @@ class Propagator2D:
         field_now: ComplexArray = np.asarray(field_in, dtype=np.complex128)
         if field_now.shape != (self.grid.ny, 2):
             raise ValueError("field must have shape (ny, 2)")
-        before = np.full(self.grid.ny, -1)
+        before: IntArray = np.full(self.grid.ny, -1)
         planes = [field_now] if keep else []
-        for row in np.asarray(self.labels):
-            field_now = self.step(field_now, before, row)
+        labels: IntArray = np.asarray(self.labels)
+        delta = None if self.fluctuation is None else np.asarray(self.fluctuation)
+        for j in range(labels.shape[0]):
+            row: IntArray = labels[j]
+            host = self._hosts[j]
+            delta_row = None if delta is None or host is None else delta[j]
+            field_now = self.step(field_now, before, row, delta_row, host)
             before = row
             if keep:
                 planes.append(field_now)

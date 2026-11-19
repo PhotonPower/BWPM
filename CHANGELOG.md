@@ -80,3 +80,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   etwa 0,01 der gemessenen g-Abweichung von 0,042.
 - Entscheidung E10: Variante B3 (#37) angenommen, neue Stufe B7 „Schwache Fluktuationen“
   (B7a Python-Referenz, B7b Kern) mit Abnahme K18.
+- B7a, 2D: Born-Inkrement für schwache Fluktuationen δn (`Propagator2D(fluctuation=...)`,
+  Spezifikation §10, Quelle chen2020). K18: K17-Sollwerte bei 29–63° auf 0,05–0,23 % getroffen
+  (reine FPWPM 7–180 %), Mehrfachstreuung gegen RCWA auf < δn, Fluss erster Ordnung in dz,
+  δn = 0 bitgleich.
