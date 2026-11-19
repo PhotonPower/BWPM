@@ -1,6 +1,6 @@
 # Entwurf B8: Rückstreuung an schwachen Fluktuationen δn
 
-> Entwurf zur Freigabe (2026-11-19). Grundlage: Stufe B7 (Born-Inkrement vorwärts,
+> Freigegeben (2026-11-19): F1–F5 wie vorgeschlagen angenommen (E12). Grundlage: Stufe B7 (Born-Inkrement vorwärts,
 > `docs/spezifikation.md` §10, K18), chen2020 mit Zusatzmaterial (Volltext geprüft), BWPM-Ablauf
 > nach wende2023 (§5). Anlass: Scattuccino braucht das rückgestreute Feld (OCT, diffuse Reflexion);
 > heute streut nur der Vorwärtslauf an δn (E10).
