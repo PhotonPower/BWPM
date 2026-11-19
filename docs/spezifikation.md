@@ -225,6 +225,9 @@ Brechzahländerungen prüfen, unabhängig vom Verfahren. Code `bwpm.born.born_fo
   x-Polarisation ≈ 0. Gegen das volle Feld (mit E_z nach Gl. (5)) und vektorielles Born folgt
   azimutal gemittelt r²/cos²θ (s-Anteil r² zu klein, p-Anteil r²/cos⁴θ zu groß); gemessen an
   einer dünnen Zufallsschicht auf 0,1–2 %.
+- **Extinktion (K17):** Die FPWPM erhält Σ|E⊥|², nicht den Fluss. Der Verlust des kohärenten
+  Feldes ist deshalb die gestreute Quernorm, im Ensemble μs,FPWPM = ∫_vorwärts σ r²/cos θ dΩ
+  (σ skalares Born), nicht das vektorielle μs.
 - **Entscheidung E9 (2026-11-19):** Gültigkeitsgrenze festhalten, das Verfahren bleibt wie
   wende2023. Streuung an feinen Brechzahländerungen ist quantitativ (Amplitude < 1 %) nur bis
   θ ≈ 11° (s) bzw. 6,6° (p). Eine Erweiterung für schwache Fluktuationen δn (Born-konsistentes

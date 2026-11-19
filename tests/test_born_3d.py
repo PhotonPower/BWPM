@@ -116,3 +116,32 @@ def test_fpwpm_3d_is_componentwise_scalar_with_k17_factor() -> None:
         )
         assert abs(measured / predicted - 1) < 0.02, (lo, hi, measured, predicted)
         assert np.sum(np.abs(spectrum[sel, 1]) ** 2) < 1e-6 * np.sum(np.abs(spectrum[sel, 0]) ** 2)
+
+
+@pytest.mark.parametrize("seed", [3, 4, 5])
+def test_fpwpm_3d_extinction_follows_the_transverse_norm(seed: int) -> None:
+    """Loss of the coherent field (μs from extinction, Scattuccino S9b-4, #29).
+
+    The FPWPM conserves Σ|E⊥|² (not the flux), so per realisation the coherent loss equals the
+    scattered transverse norm, which K17 predicts as Σ r²|S|² (ensemble: ∫ σ r²/cos θ dΩ). It
+    differs from the vector Born flux Σ|S|²(1 − k_x²/k²) cos θ by more than 5 % here (l_c = 0.3 µm),
+    so a single realisation separates the two.
+    """
+    grid, indices, labels = _random_layer(6.4, 2.0, 0.3, 8, seed)
+    indices = [complex(N0 + (n - N0) * 10) for n in indices]  # δn std 1e-4: loss ≫ rounding
+    field = np.zeros((grid.ny, grid.nx, 2), dtype=np.complex128)
+    field[..., 0] = 1.0
+    out = Bidirectional3D(grid, indices, labels, complex(N0)).run(field, iterations=0).transmitted
+    spectrum = np.fft.fft2(out, axes=(0, 1)) / (grid.nx * grid.ny)
+    loss = 1 - abs(spectrum[0, 0, 0]) ** 2
+    born = born_forward_3d(grid, indices, labels, N0, (1, 0))
+    born[0, 0] = 0
+    kx, ky = grid.k_grid()
+    k = N0 * grid.k0
+    propagating = kx**2 + ky**2 < k**2
+    cos_t = np.sqrt(np.clip(1 - (kx**2 + ky**2) / k**2, 0, 1))
+    scalar_sq = np.where(propagating, np.abs(born[..., 0] / (1 - kx**2 / k**2)) ** 2, 0.0)
+    predicted = np.sum((cos_t * (3 - cos_t) / 2) ** 2 * scalar_sq)
+    vector_flux = np.sum(scalar_sq * (1 - kx**2 / k**2) * cos_t)
+    assert abs(loss / predicted - 1) < 0.03
+    assert loss / vector_flux - 1 > 0.05

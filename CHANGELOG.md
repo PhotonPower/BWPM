@@ -72,3 +72,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   fehlendes E_z) in `docs/hinweise-scattuccino-s9b2.md`, Skript `experiments/vector_born_wm.py`.
 - Entscheidung E9: Gültigkeitsgrenze bei Streuung in große Winkel (quantitativ bis ≈ 11° für s,
   6,6° für p); Vorschlag für schwache Fluktuationen in #37. B6 abgeschlossen.
+- K17, Punkt 8 (Hinweis aus Scattuccino S9b-4): Die Extinktion des kohärenten Feldes in der
+  FPWPM folgt der gestreuten Quernorm (∫ σ r²/cos θ dΩ), nicht dem vektoriellen Born; Test je
+  Realisierung, μs-Spalte in `experiments/vector_born_wm.py`, Nachtrag in den Hinweisen.
