@@ -244,15 +244,21 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   unverändert durch den WPM-Schritt (Abschnitt 4). δn ist reell oder komplex, je Voxel gegeben und
   darf in der ersten Ausbaustufe nur in Pixeln ≠ 0 sein, deren Struktur-Brechzahl gleich dem
   Wirtsmedium ñ₀ der Scheibe ist (je Scheibe genau ein Wirtsmedium; sonst Fehler).
-- **Schritt:** mit k = ñ₀k₀, k_z = sqrt(k² − |k⊥|²), dem vollen Feld am Scheibenanfang
-  E = (E⊥, E_z), E_z = F⁻¹{−k⊥·Ê⊥/k_z} (wende2023 Gl. (5)), und V = k₀²((ñ₀ + δn)² − ñ₀²):
+- **Schritt:** mit k = ñ₀k₀, k_z = sqrt(k² − |k⊥|²), V = k₀²((ñ₀ + δn)² − ñ₀²) und dem vollen
+  Feld in der Scheibenmitte, im Wirtsmedium um dz/2 weiterpropagiert,
+  E_m = F⁻¹{e^(i k_z dz/2) (Ê⊥, Ê_z)}, Ê_z = −k⊥·Ê⊥/k_z (wende2023 Gl. (5)):
 
-  E⊥(z + dz) = WPM-Schritt(E⊥(z)) + F⁻¹{ e^(i k_z dz) · i dz/(2k_z) · [P(k)·F{V·E}]⊥ },
+  E⊥(z + dz) = WPM-Schritt(E⊥(z)) + F⁻¹{ e^(i k_z dz/2) · i dz/(2k_z) · [P(k)·F{V·E_m}]⊥ },
 
   P(k) = I − k kᵀ/k², k = (k_x, k_y, k_z) (Projektor der dyadischen Green-Funktion, chew1995;
   wie `bwpm.born.born_forward_3d`, dort ohne E_z des einfallenden Feldes). Ausgeschrieben für die
   Querkomponenten: [P·Ŝ]⊥ = Ŝ⊥ − k⊥(k⊥·Ŝ⊥ + k_z Ŝ_z)/k², Ŝ = F{V·E}. In 2D (k_x = 0): TE nur
   E_x mit Faktor 1; TM E_y mit (1 − k_y²/k²) Ŝ_y − k_y k_z Ŝ_z/k².
+- **Mittelpunktregel:** chen2020 legt die Felder in die Scheibenmitten (Algorithmus 1); das ist
+  die Mittelpunktregel für das z-Integral in Gl. (4). Die Felder der WPM liegen am rechten
+  Scheibenrand (Abschnitt 2), daher die halben Schritte. Mit dem Feld am Scheibenanfang und
+  e^(i k_z dz) wäre der Fehler von erster Ordnung (Phase (k − k_z)dz/2 je Scheibe, gemessen 6 %
+  bei 63° und dz = 0,02 µm), mit Mittelpunkt von zweiter (0,2 %).
 - **Quelle (chen2020, Volltext geprüft):** skalares Multi-Layer-Born, Gl. (1) (Streupotenzial
   V = k₀²(n_b² − n²), Vorzeichen umgekehrt zu hier), Gl. (3) (Rekursion
   U^(n+1) = U^n + U_s^n), Gl. (5) (Ausbreitung), Gl. (6) (Spektrum der Green-Funktion
@@ -265,10 +271,13 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   (|k⊥| < k); evaneszente Zellen und |k⊥| = k bekommen kein Inkrement (sie erreichen die
   Vergleichsebene nicht, 1/k_z wäre dort unbeschränkt bzw. singulär). Ob das bei feinen δn
   nahe dem Grenzwinkel die Leistung verfälscht, misst K18.
-- **Ordnung:** Gegenüber der ersten Born-Näherung der ganzen Schicht (K17-Sollwert) fehlen je
-  Scheibe die Phasenfehlanpassung im Integral (sinc in chen2020 Gl. (9)) und die Mehrfachstreuung
-  innerhalb der Scheibe; beides verschwindet mit dz → 0 (Fehler erster Ordnung in dz, Prüfung über
-  Konvergenz und Richardson-Extrapolation wie K17). Mehrfachstreuung zwischen Scheiben ist
-  enthalten (chen2020); Rückstreuung nicht (E10).
+- **Ordnung:** Gegenüber der ersten Born-Näherung der ganzen Schicht (K17-Sollwert) bleiben der
+  Fehler der Mittelpunktregel (sinc in chen2020 Gl. (9)) und die Abtastung des Potenzials (ohne
+  den Faktor sinc(k_y dy/2) der Pixelzelle), beide zweiter Ordnung in dz bzw. dy. Je Scheibe
+  wächst die Norm um O((k₀δn dz)²) (Fluss erster Ordnung in dz). Mehrfachstreuung zwischen
+  Scheiben ist enthalten (chen2020), Rückstreuung nicht (E10): Gegen eine exakte Rechnung bleibt
+  ein Fehler der Ordnung δn/ñ₀ (fehlende Fresnel-Reflexe an Ein- und Austritt) und im Mittelwert
+  der Phase k₀ δn²/(2ñ₀)·L (der Term −V²/(8k³) der Ausbreitungskonstante fehlt in der
+  Born-Reihe ohne Rückwärtsanteil).
 - **δn = 0:** Ohne δn wird das Inkrement nicht berechnet; das Ergebnis ist bitgleich zu heute
   (K1–K16, `reference/`).
