@@ -338,3 +338,32 @@ Entwurf und Entscheidungen F1–F5: `docs/b8-entwurf.md`. Erweitert §10 auf bei
 - **Umsetzung:** `bwpm.fluctuation` (`born_sources`, `born_emission`), eingebunden in
   `Propagator2D`, `Bidirectional2D` (bisher ohne δn, Lücke aus B7) und `Bidirectional3D`; im Kern
   B8b. Prüfung K19.
+
+## 12. Flusserhaltender Born-Schritt (B9, E13)
+
+Entwurf und Entscheidungen G1–G5: `docs/b9-entwurf.md`. Ersetzt das explizite Inkrement aus §10
+(vorwärts) und R2 aus §11 (rückwärts); R1 und R3 bleiben wie in §11.
+
+- **Schritt (G1):** Für das in Scheibe p einfallende Feld der Richtung d im Wirt ñ₀:
+
+  x = P_½·E_ein, (1 − G_d/2)·y′ = G_d·x, ΔE = P_½^(d)·y′,
+
+  mit P_½ = e^(i k_z dz/2), dem Streuoperator in der Scheibenmitte
+
+  G_d·S = i dz/(2k_z)·[P(k_d)·F{V·e}]⊥, e = F⁻¹(Ŝ⊥, Ŝ_z), Ŝ_z = −d·k⊥·Ŝ⊥/k_z,
+
+  V = 2ñ₀k₀²δn (E11) und k_d = (k_x, k_y, d·k_z); nur propagierende, nicht streifende Wellen.
+  Vorwärts (d = +1) ist P_½^(+) = P_½, und ΔE wird wie in §10 zum Ergebnis der WPM an Ebene p + 1
+  addiert. Rückwärts (d = −1) ist P_½^(−) = P_½⁻¹: Das am linken Rand austretende Inkrement wird auf
+  Ebene p + 1 bezogen, wie R2 in §11. In einer Scheibe, die ganz aus dem Wirt besteht, ist
+  E_aus = P_½(1 − G/2)⁻¹(1 + G/2)P_½·E_ein.
+- **Flusserhaltung:** Im vollen Vektor ist G = i·W·P(k)VP(k), W = dz/(2k_z). Das ist für reelles δn
+  schiefhermitesch bezüglich K = diag(k_z); die Cayley-Form ist dann K-unitär, und P_½ vertauscht
+  mit K. Der Fluss Σ k_z(|E⊥|² + |E_z|²) bleibt erhalten. Für Im δn ≥ 0 ist der Schritt
+  kontraktiv (G4).
+- **Lösung (G2):** GMRES, matrixfrei, Neustart 30, Startwert G·x, relative Toleranz 10⁻¹² (strenger
+  als die beschlossenen 10⁻¹⁰, damit Kern und Python mit verschiedenen GMRES-Umsetzungen bis nahe an
+  die Rundung übereinstimmen; wenige zusätzliche Iterationen).
+- **Ordnung:** In erster Ordnung in G gleich der Mittelpunktregel (§10); die Gauß-Punkte (§11) gelten
+  weiter nur für R1 und R3 (G3).
+- **Umsetzung:** `bwpm.fluctuation.born_step`, eingebunden wie §10 und §11. Prüfung K20.

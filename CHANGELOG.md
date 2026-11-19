@@ -118,3 +118,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   Scattuccino, #29) als Grenze festgehalten; stabiler Born-Schritt als Stufe B9 aufgenommen.
 - Entwurf B9 (`docs/b9-entwurf.md`): Strang-Cayley-Schritt, Fluss am Medium aus #29 exakt
   erhalten; der im ersten Versuch gemeldete Flussverlust war ein Messfehler (E_z fehlte).
+- B9a/B9b: flusserhaltender Born-Schritt (Strang-Cayley, GMRES bis 10⁻¹²) in Python, CPU- und
+  CUDA-Kern; ersetzt das explizite Inkrement vorwärts und R2. K20: Fluss am Medium aus #29 auf
+  10⁻¹³ statt +3 bis +40 %. Sollwertdateien für δn neu erzeugt; SciPy ≥ 1.12 (GMRES mit `rtol`).

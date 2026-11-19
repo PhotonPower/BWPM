@@ -24,6 +24,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K17 | Streuung an schwachen Lamellengittern (δn = 10⁻⁵) und einer dünnen Zufallsschicht, λ = 0,8 µm, ñ₀ = 1,38, FPWPM | erste Born-Näherung der Pixeltreppe (`bwpm.born`), selbst geprüft gegen Airy und RCWA (Abweichung O(δn)) | Born gegen Airy/RCWA < 10⁻³ und erster Ordnung in δn; FPWPM gegen Born < 10⁻³ paraxial (0,8°), < 1 % bei 29–63° | B6 | ✅ Referenz, paraxial, Ursache analytisch erklärt (2D und 3D); große Winkel verfehlt, als Gültigkeitsgrenze E9 festgehalten, Test `xfail(strict)` | `test_born.py`, `test_born_3d.py`, `experiments/born_angles.py` |
 | K18 | Schwache Fluktuationen δn mit Born-Inkrement (B7, E10): Lamellengitter und Zufallsschicht wie K17, Mehrfachstreuung bei δn = 0,01–0,03, δn = 0 | erste Born-Näherung (`bwpm.born`, K17), RCWA (`tests/rcwa_reference.py`), Energie mit E_z, bestehende Sollwerte | K17-Toleranzen ohne Anpassung, Konvergenz in dz; δn = 0 bitgleich | B7a | ✅ abgenommen (2026-11-19): 2D (Born, RCWA, Fluss, bitgleich) und 3D (vektorielles Born, = 2D, bitgleich); Potenzial nach E11 | `test_fluctuation.py`, `test_fluctuation_3d.py` |
 | K19 | Rückstreuung an δn in der BWPM (B8, E12): homogene Schicht δn = 10⁻³ (0–25°, s und p), Bragg-Gitter in z (R = 0,15), Lamellengitter in Reflexion (δn = 0,01/0,03), δn = 0, 3D = 2D, Kern | exakte Lösung des Schichtstapels (Transfer-Matrix, unabhängig im Test), RCWA in Reflexion (gegen Airy und Energie geprüft), geschlossenes Born-Integral einer Scheibe, Python-Referenz für den Kern | Schicht: r relativ 2·10⁻³, t 10⁻⁴; Bragg 1 %; Gitter in Reflexion gegen RCWA δn; Energie 10⁻³; Scheibenintegral 2·10⁻⁴; Kern 10⁻¹² (CPU), 10⁻¹⁰ (CUDA) | B8a, B8b | ✅ abgenommen (2026-11-19) | `test_backscatter.py`, `test_core_solver.py`, `test_core_cuda.py` |
+| K20 | Flusserhaltender Born-Schritt (B9, E13): Medium aus #29 (Whittle–Matérn, l_c = 0,5 µm, σ_n = 0,057 und 0,1), absorbierendes δn, Kern | Fluss Σ k_z(\|E⊥\|² + \|E_z\|²) des Ebene-Wellen-Spektrums, exakte Dämpfung e^(−2k₀κL), Python-Referenz | Fluss 10⁻⁸; Dämpfung 10⁻⁶; Anteil nahe dem Grenzwinkel unabhängig von dz auf 30 %; Kern 10⁻¹⁰ | B9a, B9b | ✅ (Abnahme offen) | `test_stable_born.py`, `test_core_solver.py`, `test_core_cuda.py` |
 
 ## K6 in 3D (B5a)
 
@@ -404,6 +405,23 @@ Felder, im Test selbst geschrieben wie in K4).
    Der Fehler ist etwa 0,3–0,5·δn, unabhängig von dz (bei 0,01 µm gleich): zweite Ordnung in δn
    (Größe δn/ñ₀). Toleranz δn wie in K18. Die schwächere p-Reflexion bei 46° (Faktor ≈ cos 2θ)
    gibt der Projektor P(k_d′) richtig wieder.
+
+## K20: Flusserhaltender Born-Schritt (B9, E13)
+
+Spezifikation §12, Entwurf `docs/b9-entwurf.md` (G1–G5). Anlass: Instabilität des expliziten
+Schritts bei σ_n ≈ 0,06 (#29).
+
+1. **Fluss** für reelles δn, Medium aus #29 über 3 µm (48², vorwärts): Abweichung −6,9·10⁻¹⁴
+   (σ_n = 0,057, dz = 0,1 µm), −3,7·10⁻¹⁴ (0,057, 0,05 µm), −5,0·10⁻¹⁵ (0,1, 0,1 µm); mit dem
+   expliziten Schritt +3 / +7 / +40 %. Σ|E⊥|² ist nicht die Erhaltungsgröße (E_z fehlt).
+2. **Stabilität:** Anteil von |E⊥|² bei cos θ < 0,3 für dz = 0,1 und 0,05 µm (ein Medium, quer
+   0,1 µm) innerhalb 30 %.
+3. **Absorption:** δn = iκ, κ = 10⁻³, 5 µm: Fluss fällt wie e^(−2k₀κL) auf 10⁻⁶ (vorher 1,5·10⁻⁵).
+4. **K17–K19** bleiben grün; der Test zur Flusserhaltung erster Ordnung in K18 prüfte eine
+   Eigenschaft des expliziten Schritts (siehe unten).
+5. **Kern:** CPU-Kern mit eigenem GMRES gegen Python auf 10⁻¹⁰ (gemessen 3·10⁻¹⁵), CUDA (GMRES auf
+   dem Gerät) gegen CPU auf 10⁻¹⁰; Fluss im Kern auf 10⁻⁸. Laufzeit je Scheibe mit δn bei 256²
+   (RTX 2080): CUDA 10–11 ms, CPU 90–100 ms (expliziter Schritt 6,8 / 29 ms, 16 Stufen 100 / 514 ms).
 
 ## K7: Randzone der Maske (B1)
 
