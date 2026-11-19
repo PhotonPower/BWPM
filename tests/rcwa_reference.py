@@ -1,4 +1,4 @@
-"""Rigorous coupled-wave analysis (RCWA) of one lamellar layer: independent reference for K17.
+"""Rigorous coupled-wave analysis (RCWA) of one lamellar layer: independent reference for K17-K19.
 
 Test-only code. A layer of thickness L, periodic in y with period Λ, index ñ₂ for
 y ∈ [y₀, y₁) and ñ₁ elsewhere, lies between two half-spaces of index ñ₀. A plane wave of unit
@@ -55,6 +55,49 @@ def lamellar_transmission(
     E_m e^(i(k_y y + k_z (z − L))) in the half-space behind the layer, the incident wave has
     amplitude 1 at z = 0.
     """
+    return _lamellar(
+        index_background, index_outside, index_inside, period, y0, y1, thickness, wavelength,
+        n_orders, polarization,
+    )[1]  # fmt: skip
+
+
+def lamellar_reflection(
+    index_background: complex,
+    index_outside: complex,
+    index_inside: complex,
+    period: float,
+    y0: float,
+    y1: float,
+    thickness: float,
+    wavelength: float,
+    n_orders: int,
+    polarization: Literal["TE", "TM"],
+) -> dict[int, complex]:
+    """Reflected transverse field E_x (TE) or E_y (TM) per diffraction order at z = 0 (K19).
+
+    The amplitude refers to the plane wave E_m e^(i(k_y y − k_z z)) in the half-space before the
+    layer, per unit incident E_x resp. E_y at z = 0. TM: H_x of a −z wave gives E_y = +k_z H_x/(ωε),
+    of the incident +z wave E_y = −k H_x/(ωε), hence the factor −k_z/k.
+    """
+    return _lamellar(
+        index_background, index_outside, index_inside, period, y0, y1, thickness, wavelength,
+        n_orders, polarization,
+    )[0]  # fmt: skip
+
+
+def _lamellar(
+    index_background: complex,
+    index_outside: complex,
+    index_inside: complex,
+    period: float,
+    y0: float,
+    y1: float,
+    thickness: float,
+    wavelength: float,
+    n_orders: int,
+    polarization: Literal["TE", "TM"],
+) -> tuple[dict[int, complex], dict[int, complex]]:
+    """(reflected, transmitted) transverse fields per order, see the two public functions."""
     k0 = 2.0 * np.pi / wavelength
     k = complex(index_background) * k0
     orders = np.arange(-n_orders, n_orders + 1)
@@ -95,7 +138,12 @@ def lamellar_transmission(
     incident = np.zeros(size, dtype=np.complex128)
     incident[n_orders] = 1.0
     rhs = np.concatenate([-incident, h_factor * kz * incident, np.zeros(2 * size)])
-    t = np.linalg.solve(system, rhs)[3 * size :]
+    solution = np.linalg.solve(system, rhs)
+    r, t = solution[:size], solution[3 * size :]
     if polarization == "TM":
         t = t * kz / k  # H_x → E_y of a +z wave: E_y = −k_z H_x/(ω ε₀ ñ₀²), same factor for all m
-    return {int(m): complex(v) for m, v in zip(orders, t, strict=True)}
+        r = -r * kz / k  # −z wave: E_y = +k_z H_x/(ω ε₀ ñ₀²)
+    return (
+        {int(m): complex(v) for m, v in zip(orders, r, strict=True)},
+        {int(m): complex(v) for m, v in zip(orders, t, strict=True)},
+    )
