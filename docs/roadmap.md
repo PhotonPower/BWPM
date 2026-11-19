@@ -31,6 +31,7 @@ Leitlinien:
 | **B6 Große Winkel (#29)** | Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen Brechzahländerungen; Sollwert erste Born-Näherung (E8) | K17 ✅ (Ursache erklärt, Grenze E9) |
 | **B7 Schwache Fluktuationen (#37, E10)** | Zerlegung ñ = ñ_Struktur + δn: Struktur weiter mit WPM, δn je Scheibe mit dem vektoriellen Born-Inkrement im Wirtsmedium; B7a Python-Referenz, B7b Kern (C++/CUDA) | B7a ✅ (abgenommen 2026-11-19): K18 (K17-Sollwerte ohne Anpassung getroffen, Konvergenz in dz; Mehrfachstreuung gegen RCWA; Energie mit E_z; δn = 0 bitgleich, K1–K16 und `reference/` unberührt). B7b: neue Sollwertdateien aus B7a; CPU-Kern ✅ (K18 Punkt 7), CUDA ✅ auf RTX 2080 (K18 Punkt 8); B7b ✅ abgenommen 2026-11-19 |
 | **B8 Rückstreuung an δn (E12)** | Rückstreuung des Vorwärtsfeldes, Vorwärtsstreuung des Rückwärtsfeldes und dessen Rückstreuung an δn in der BWPM; Entwurf [docs/b8-entwurf.md](b8-entwurf.md); B8a Python-Referenz, B8b Kern | K19 (exakter Schichtstapel, Bragg-Gitter, Energie, Scheibenintegral, RCWA in Reflexion, δn = 0 bitgleich) – B8 ✅ abgenommen 2026-11-19 (B8a Python, B8b CPU- und CUDA-Kern) |
+| **B9 Stabiler Born-Schritt (E13, #29)** | Der explizite Born-Schritt (B7, B8) wächst je Scheibe um 1 + Γ², Γ ≈ k₀ñ₀δn·dz/k_z; bei σ_n ≈ 0,06 und breitem Spektrum instabil nahe dem Grenzwinkel (Befund Scattuccino S9b-8). Ansatz: Crank-Nicolson-Form E_aus = P·E_ein + B·½(E_ein + P⁻¹E_aus) mit Fixpunktiteration; Herleitung der Flusserhaltung und Ursache des Restverlusts (erster Versuch: −3,5 % nach 6 µm) offen; B9a Python, B9b Kern | K20: Fluss für reelles δn auf ≲ 10⁻³ bei σ_n = 0,06 über μs·z > 1, Konvergenz der Iteration; K17–K19 unverändert grün; Ensemble gegen vektorielles Born |
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
 vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
@@ -59,6 +60,7 @@ Python und Kern, geprüft mit K19.
 | E10 | Erweiterung für schwache Fluktuationen (#37) | Variante B3 angenommen als Stufe B7: δn je Scheibe mit dem Born-Inkrement F⁻¹{e^(i k_z dz)·i dz/(2k_z)·P⊥·F{V_δn·E}} im homogenen Wirtsmedium, Struktur unverändert mit WPM; mit δn = 0 bitgleich zu heute. Erste Ausbaustufe: Wirtsmedium je Bereich homogen, nur Vorwärtsrichtung, streifende Wellen regularisiert oder auf propagierende beschränkt (in B7a festzulegen); Rückstreuung und δn in Linsen später. E9 gilt weiter für die reine WPM (2026-11-19) |
 | E11 | Potenzial im Born-Inkrement (#46) | linearisiert, V = 2ñ₀k₀²δn statt k₀²((ñ₀ + δn)² − ñ₀²) nach chen2020 Gl. (1): mittlere Phase bei senkrechter Ausbreitung bis zur zweiten Ordnung exakt, Fehler gegen RCWA etwa ein Drittel; in erster Ordnung gleich (2026-11-19) |
 | E12 | Rückstreuung an δn (Scattuccino, OCT) | als Stufe B8 aufgenommen; Entwurf `docs/b8-entwurf.md`, F1–F5 wie vorgeschlagen angenommen: Gauß-Legendre mit 2 Punkten für das Scheibenintegral vorwärts und rückwärts (Abweichung von chen2020), Rückstreuung R1–R3, volle Quellebenen in complex128, Iterationen wie bei Grenzflächen, ein Wirt je Scheibe (2026-11-19) |
+| E13 | Instabilität des Born-Inkrements bei σ_n ≈ 0,06 (#29, Scattuccino S9b-8) | Grenze des expliziten Schritts, kein Programmfehler (in BWPM nachgerechnet); als Stufe B9 aufgenommen: stabiler, flusserhaltender Born-Schritt (2026-11-19). Bis dahin σ_n ≲ 0,03 und dz ≲ 0,05 µm |
 
 ## Risiken
 
@@ -72,6 +74,8 @@ Python und Kern, geprüft mit K19.
   s-Anteil zu schwach und den p-Anteil zu stark (Faktor 0,80 bzw. 1,68 in der Amplitude bei 46°);
   quantitativ nur bis etwa 6,6° (p) bzw. 11° (s). Betrifft Streumedien (Scattuccino), nicht die
   Brechung an glatten Flächen. Abhilfe für schwache Fluktuationen: B7 (E10).
+- **Born-Inkrement bei starken Fluktuationen (E13):** Der explizite Schritt ist für σ_n ≈ 0,06
+  nahe dem Grenzwinkel instabil (Norm × 2,3 nach 6 µm bei dz = 0,1 µm); Abhilfe in B9.
 - **Geführte Wellen (K4):** Die Iteration konvergiert nicht für durch Totalreflexion gefangene
   Wellen.
 - **Wahl der Brechzahlstufen:** M wächst bei gekrümmten Flächen und Gradienten; der Aufwand geht mit
