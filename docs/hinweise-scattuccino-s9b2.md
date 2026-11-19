@@ -53,6 +53,31 @@ gemessen/skalar 1,06 / 1,06 / 1,04 / 0,91 / 0,75 / 0,55 bei 13,5° / 22,5° / 31
 49,5° / 58,5°, K17-Vorhersage 1,04 / 0,98 / 0,90 / 0,78 / 0,63 / 0,45. Die Richtung stimmt, die
 Kurve nicht genau (eine Realisierung, Mehrfachstreuung).
 
+## Nachtrag: μs aus der Extinktion (Rückmeldung in #29, S9b-4)
+
+Die Annahme „Kohärenzverlust = gestreute Querleistung, ∫ σ r² dΩ“ trifft nicht zu. Die FPWPM
+erhält die **Norm** Σ|E⊥|² (in der Kalibrierung max |Σ|E⊥|² − 1| = 0,003), nicht den Fluss. Eine
+Zelle im k⊥-Gitter mit |E⊥|² trägt zur Norm |E⊥|² bei, zum Fluss |E⊥|² cos θ (bei skalarer
+Behandlung). Der Kohärenzverlust ist deshalb die gestreute Norm, im Ensemble
+∫_vorwärts σ r²/cos θ dΩ. In BWPM je Realisierung bestätigt (K17, Punkt 8): Verlust = Σ r²|S|² auf
+0,2–1,7 %, 8–9 % über dem vektoriellen Born-Fluss.
+
+| l_c (µm) | D | μs vektoriell/skalar | ∫ σ r² dΩ (Annahme S9b-4) | μs FPWPM/skalar (∫ σ r²/cos θ dΩ) | gemessen S9b-2/S9b-4 |
+| --- | --- | --- | --- | --- | --- |
+| 0,5 | 4 | 0,951 | 0,932 | 0,978 | 0,96 ± 0,03 / 0,953 |
+| 0,2 | 4 | 0,854 | 0,768 | 0,892 | 0,902 |
+| 1,0 | 4 | 0,982 | 0,977 | 0,994 | 0,972 |
+| 0,5 | 3,5 | 0,929 | 0,894 | 0,957 | 0,961 |
+| 0,5 | 5 | 0,974 | 0,969 | 0,995 | 0,993 |
+
+Die Einzelläufe passen bei l_c = 0,2 µm, D = 3,5 und D = 5 besser zur FPWPM-Vorhersage als zum
+vektoriellen Born, bei l_c = 1,0 µm und im Mittel von l_c = 0,5 µm, D = 4 umgekehrt; die Streuung
+der Realisierungen (±3 %) lässt im Ensemble keine sichere Aussage zu. Folgerung: Die Nähe zu
+vektoriellem Born ist kein Beleg für vektorielle Streuung (wie in #29 vermutet). Das μs aus der
+Extinktion der BWPM ist aber auch nicht das physikalische μs, sondern ≈ ∫ σ r²/cos θ dΩ, also nahe
+am skalaren Born. Für eine Kalibrierung des Monte Carlo ist deshalb das vektorielle Born die
+bessere Referenz als die gemessene Extinktion, solange #37 offen ist.
+
 ## Vorschläge
 
 1. **Referenz vektoriell:** σ_vec(θ, φ) = σ(θ)·(1 − sin²θ cos²φ) für x-Polarisation, für die

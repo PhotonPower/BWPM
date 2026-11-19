@@ -255,10 +255,30 @@ Fenster 40 µm, Seed 29), gestreute Leistung je Winkelbereich, FPWPM/Born:
    verglichen streut die FPWPM bei großen Winkeln zu viel (p-Anteil). Hinweise und die Tabelle für
    die Medien aus S9b-2: [hinweise-scattuccino-s9b2.md](hinweise-scattuccino-s9b2.md),
    `experiments/vector_born_wm.py`.
+8. **Extinktion des kohärenten Feldes** (Hinweis aus Scattuccino S9b-4, #29;
+   `test_fpwpm_3d_extinction_follows_the_transverse_norm`): Die FPWPM erhält die Quernorm
+   Σ|E⊥|² (auf ≈ 1 % des Verlusts), nicht den Fluss. Je Realisierung ist der Kohärenzverlust
+   deshalb gleich der gestreuten Quernorm, nach K17 Σ r²|S|², im Ensemble ∫ σ r²/cos θ dΩ über die
+   Vorwärtshälfte. Dünne Zufallsschicht wie in Punkt 7, Standardabweichung δn = 10⁻⁴, drei Seeds;
+   Werte relativ zum skalaren Born-Fluss Σ|S|² cos θ:
+
+   | Seed | Kohärenzverlust | K17: Σ r²\|S\|² | Born vektoriell | ∫ σ r² dΩ (Annahme S9b-4) |
+   | --- | --- | --- | --- | --- |
+   | 3 | 1,001 | 0,986 | 0,928 | 0,906 |
+   | 4 | 0,983 | 0,981 | 0,903 | 0,882 |
+   | 5 | 1,004 | 0,987 | 0,926 | 0,911 |
+
+   Verlust/K17 = 1,015 / 1,002 / 1,017 (der Rest ist die Normabweichung durch die Fresnel-Faktoren
+   in zweiter Ordnung). Die Extinktion der FPWPM folgt also der Quernorm und liegt nahe am
+   skalaren Born, 8–9 % über dem vektoriellen. Für die Medien aus S9b-2
+   (`experiments/vector_born_wm.py`) folgt μs,FPWPM/μs,skalar = 0,978 (l_c = 0,5 µm, D = 4),
+   0,892 (0,2 µm), 0,994 (1,0 µm), 0,957 (D = 3,5), 0,995 (D = 5); vektoriell 0,951 / 0,854 /
+   0,982 / 0,929 / 0,974. Gemessen in S9b-2 (je ein Lauf): 0,902 / 0,972 / 0,961 / 0,993 und
+   0,96 ± 0,03 bzw. 0,953 (S9b-4) für l_c = 0,5 µm, D = 4. Im Ensemble trennt die Streuung der
+   Realisierungen die Annahmen nicht sicher; je Realisierung (wie hier) schon.
 
 Nicht untersucht: schräger Einfall (die Herleitung sagt dort k_z(k_y)/k_z(q) im Volumen voraus),
-Mehrfachstreuung, Extinktion des kohärenten Feldes (μs) und Leistungserhaltung bei l_c = 0,2 µm
-(#29).
+Mehrfachstreuung und Leistungserhaltung bei l_c = 0,2 µm (#29).
 
 ## K7: Randzone der Maske (B1)
 
