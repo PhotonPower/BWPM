@@ -30,7 +30,7 @@ Leitlinien:
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
 | **B6 Große Winkel (#29)** | Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen Brechzahländerungen; Sollwert erste Born-Näherung (E8) | K17 ✅ (Ursache erklärt, Grenze E9) |
 | **B7 Schwache Fluktuationen (#37, E10)** | Zerlegung ñ = ñ_Struktur + δn: Struktur weiter mit WPM, δn je Scheibe mit dem vektoriellen Born-Inkrement im Wirtsmedium; B7a Python-Referenz, B7b Kern (C++/CUDA) | B7a ✅ (abgenommen 2026-11-19): K18 (K17-Sollwerte ohne Anpassung getroffen, Konvergenz in dz; Mehrfachstreuung gegen RCWA; Energie mit E_z; δn = 0 bitgleich, K1–K16 und `reference/` unberührt). B7b: neue Sollwertdateien aus B7a; CPU-Kern ✅ (K18 Punkt 7), CUDA ✅ auf RTX 2080 (K18 Punkt 8); B7b ✅ abgenommen 2026-11-19 |
-| **B8 Rückstreuung an δn (E12)** | Rückstreuung des Vorwärtsfeldes, Vorwärtsstreuung des Rückwärtsfeldes und dessen Rückstreuung an δn in der BWPM; Entwurf [docs/b8-entwurf.md](b8-entwurf.md); B8a Python-Referenz, B8b Kern | K19 (exakter Schichtstapel, Bragg-Gitter, Energie, Scheibenintegral, RCWA in Reflexion, δn = 0 bitgleich) – B8a und B8b umgesetzt, Abnahme offen |
+| **B8 Rückstreuung an δn (E12)** | Rückstreuung des Vorwärtsfeldes, Vorwärtsstreuung des Rückwärtsfeldes und dessen Rückstreuung an δn in der BWPM; Entwurf [docs/b8-entwurf.md](b8-entwurf.md); B8a Python-Referenz, B8b Kern | K19 (exakter Schichtstapel, Bragg-Gitter, Energie, Scheibenintegral, RCWA in Reflexion, δn = 0 bitgleich) – B8 ✅ abgenommen 2026-11-19 (B8a Python, B8b CPU- und CUDA-Kern) |
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
 vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
@@ -40,7 +40,8 @@ von B5b ab und lief vorher; abgeschlossen mit der Gültigkeitsgrenze E9. B7 (E10
 nicht von B5b ab und läuft, solange B5b wartet; B7a ist abgenommen (Python-Referenz in 2D und
 3D, K18). B7b ist abgenommen (2026-11-19): CPU- und CUDA-Kern, geprüft auf einer RTX 2080 mit
 CUDA 13.4 und 13.5; ein Lauf auf sm_89 (RTX 6000 Ada) steht noch aus, ist aber keine Bedingung der
-Abnahme. B7 ist damit abgeschlossen.
+Abnahme. B7 ist damit abgeschlossen. B8 (E12, Rückstreuung an δn) ist abgenommen (2026-11-19),
+Python und Kern, geprüft mit K19.
 
 ## Entscheidungen
 
