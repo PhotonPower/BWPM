@@ -28,13 +28,13 @@ Leitlinien:
 | **B3 3D** | (x, y, z) mit Speicherung der Reflexe nur an Grenzflächen; Speicher- und Laufzeitmodell | K10–K12; Messlauf auf dem Rechner des Maintainers (`docs/testfaelle.md`, Messlauf B3) ✅ |
 | **B4 Kern und Ports** | C++/CUDA-Kern, Python-Anbindung, Adapter nach dem Fusionsplan (Abschnitt 6.4), Konformitätstests (6.5); Entwurf und Teilstufen B4a–B4e in [docs/b4-entwurf.md](b4-entwurf.md) | Sollwertdateien aus B1–B3 (`reference/`) bitgleich bzw. in Toleranz ✅ (B4a–B4e, K13–K16) |
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
-| **B6 Große Winkel (#29)** | Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen Brechzahländerungen; Sollwert erste Born-Näherung (E8) | K17 |
+| **B6 Große Winkel (#29)** | Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen Brechzahländerungen; Sollwert erste Born-Näherung (E8) | K17 ✅ (Ursache erklärt, Grenze E9) |
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
 vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
 Kern aus B4. B5a (3D ohne Raytatouille) ist gemessen, siehe [docs/pilot-imc-3d.md](pilot-imc-3d.md);
 B5b (Kopplung mit Raytatouille) wartet auf Raytatouille v1.0 und den Port. B6 (E8) hängt nicht
-von B5b ab und läuft vorher.
+von B5b ab und lief vorher; abgeschlossen mit der Gültigkeitsgrenze E9.
 
 ## Entscheidungen
 
@@ -48,6 +48,7 @@ von B5b ab und läuft vorher.
 | E6 | Fusionspilot vor B3 | in 2D vorgezogen, mit `fieldtracing` als optionaler Abhängigkeit (Extra `fusion`, Commit festgelegt) (2026-11-05) |
 | E7 | Aufbau des C++/CUDA-Kerns (#16) | D1–D8 aus `docs/b4-entwurf.md`: ein Paket mit optionalem `bwpm._core`, CMake-Presets und scikit-build-core, pybind11, pocketfft/cuFFT, complex128, T/R im GPU-Kernel, OpenMP, CUDA ≥ 12.6 sm_89 (2026-11-05) |
 | E8 | Befund aus Scattuccino S9b-2 (#29) | als Stufe B6 vor B5b prüfen; Sollwert erste Born-Näherung einer dünnen Schicht, selbst gegen Airy und RCWA geprüft (2026-11-19) |
+| E9 | Grenze bei Streuung in große Winkel (#29, K17) | Gültigkeitsgrenze festhalten, das Verfahren bleibt wie wende2023: Streuung an feinen Brechzahländerungen quantitativ (Amplitude < 1 %) nur bis θ ≈ 11° (s) bzw. 6,6° (p); darüber s-Anteil um r = cos θ (3 − cos θ)/2 zu klein, p-Anteil um r/cos²θ zu groß. Erweiterung für schwache Fluktuationen (Variante B3: Born-konsistentes Inkrement für δn) als Vorschlag in #37, nicht beschlossen (2026-11-19) |
 
 ## Risiken
 
@@ -57,6 +58,10 @@ von B5b ab und läuft vorher.
   Restreflexion durch zu steile Masken misst B1.
 - **Leistung an gekippten Flächen (gemessen in B1/B2, K8, K9):** Transmission auf einige Prozent,
   Reflexion an gekippten Flächen grob falsch und nicht konvergent; als Gültigkeitsgrenze festgehalten (E5).
+- **Streuung in große Winkel (K17, E9):** An feinen Brechzahländerungen streut der Schritt den
+  s-Anteil zu schwach und den p-Anteil zu stark (Faktor 0,80 bzw. 1,68 in der Amplitude bei 46°);
+  quantitativ nur bis etwa 6,6° (p) bzw. 11° (s). Betrifft Streumedien (Scattuccino), nicht die
+  Brechung an glatten Flächen.
 - **Geführte Wellen (K4):** Die Iteration konvergiert nicht für durch Totalreflexion gefangene
   Wellen.
 - **Wahl der Brechzahlstufen:** M wächst bei gekrümmten Flächen und Gradienten; der Aufwand geht mit
