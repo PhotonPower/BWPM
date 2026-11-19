@@ -29,7 +29,7 @@ Leitlinien:
 | **B4 Kern und Ports** | C++/CUDA-Kern, Python-Anbindung, Adapter nach dem Fusionsplan (Abschnitt 6.4), Konformitätstests (6.5); Entwurf und Teilstufen B4a–B4e in [docs/b4-entwurf.md](b4-entwurf.md) | Sollwertdateien aus B1–B3 (`reference/`) bitgleich bzw. in Toleranz ✅ (B4a–B4e, K13–K16) |
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
 | **B6 Große Winkel (#29)** | Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen Brechzahländerungen; Sollwert erste Born-Näherung (E8) | K17 ✅ (Ursache erklärt, Grenze E9) |
-| **B7 Schwache Fluktuationen (#37, E10)** | Zerlegung ñ = ñ_Struktur + δn: Struktur weiter mit WPM, δn je Scheibe mit dem vektoriellen Born-Inkrement im Wirtsmedium; B7a Python-Referenz, B7b Kern (C++/CUDA) | B7a ✅ (abgenommen 2026-11-19): K18 (K17-Sollwerte ohne Anpassung getroffen, Konvergenz in dz; Mehrfachstreuung gegen RCWA; Energie mit E_z; δn = 0 bitgleich, K1–K16 und `reference/` unberührt). B7b: neue Sollwertdateien aus B7a |
+| **B7 Schwache Fluktuationen (#37, E10)** | Zerlegung ñ = ñ_Struktur + δn: Struktur weiter mit WPM, δn je Scheibe mit dem vektoriellen Born-Inkrement im Wirtsmedium; B7a Python-Referenz, B7b Kern (C++/CUDA) | B7a ✅ (abgenommen 2026-11-19): K18 (K17-Sollwerte ohne Anpassung getroffen, Konvergenz in dz; Mehrfachstreuung gegen RCWA; Energie mit E_z; δn = 0 bitgleich, K1–K16 und `reference/` unberührt). B7b: neue Sollwertdateien aus B7a; CPU-Kern ✅ (K18 Punkt 7), CUDA offen |
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
 vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
@@ -37,7 +37,8 @@ Kern aus B4. B5a (3D ohne Raytatouille) ist gemessen, siehe [docs/pilot-imc-3d.m
 B5b (Kopplung mit Raytatouille) wartet auf Raytatouille v1.0 und den Port. B6 (E8) hängt nicht
 von B5b ab und lief vorher; abgeschlossen mit der Gültigkeitsgrenze E9. B7 (E10) hängt ebenfalls
 nicht von B5b ab und läuft, solange B5b wartet; B7a ist abgenommen (Python-Referenz in 2D und
-3D, K18), als Nächstes B7b.
+3D, K18). B7b: CPU-Kern umgesetzt; CUDA braucht CUDA ≥ 12.6 und den Messlauf auf dem Rechner des
+Maintainers.
 
 ## Entscheidungen
 

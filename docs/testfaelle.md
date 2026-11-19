@@ -12,7 +12,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K11 | 3D ebener Stapel (Luft/1,5/2,1/Silber/1,5), beliebiger Azimut und Polarisation | Transfer-Matrix für s und p getrennt (tangentiale Felder) | < 1e−12 nach 30 Iterationen; prüft die Kopplung von E_x und E_y | B3 | ✅ | `test_volume3d.py` |
 | K12 | 3D in x homogen = 2D; dünn gespeicherte Reflexe = voll gespeicherte | 2D-BWPM; volle Speicherung | < 1e−12 bzw. bitgleich, Speicher < 1/5 | B3 | ✅ | `test_volume3d.py` |
 | K13 | C++-Kern: Grenzflächenmatrizen (`bwpm._core`) | Sollwertdatei `interface_matrices`; Python-Referenz auf einem FFT-Gitter mit k⊥ = 0, streifend, evaneszent | Dateitoleranz bzw. < 1e−13 | B4b | ✅ | `test_core_interface.py` |
-| K14 | C++-Kern: FPWPM/BWPM in 2D und 3D (`bwpm._core.Solver`, `bwpm.fast.run_2d/run_3d`) | alle Sollwertdateien unter `reference/`; Python-Referenz auf zufälligen 3D-Volumina (vier Materialien inkl. Silber, mit und ohne Maske, dx ≠ dy) | Dateitoleranz bzw. < 1e−12 des Eingangs; gespeicherte Reflexwerte gleich; Threads ändern nichts | B4c | ✅ | `test_core_solver.py` |
+| K14 | C++-Kern: FPWPM/BWPM in 2D und 3D (`bwpm._core.Solver`, `bwpm.fast.run_2d/run_3d`) | alle Sollwertdateien unter `reference/`; Python-Referenz auf zufälligen 3D-Volumina (vier Materialien inkl. Silber, mit und ohne Maske, dx ≠ dy) | Dateitoleranz bzw. < 1e−12 des Eingangs; gespeicherte Reflexwerte gleich; Threads ändern nichts | B4c, B7b | ✅ (B7b: δn, K18 Punkt 7) | `test_core_solver.py` |
 | K15 | CUDA-Kern (`bwpm._core.CudaSolver`, `backend="cuda"`) | alle Sollwertdateien; CPU-Kern auf zufälligen 3D-Volumina | rel 1e−10, abs 1e−11 des Maximums; CUDA gegen CPU ≈ 1e−16 | B4d | ✅ (Server, 2026-11-06) | `test_core_cuda.py` |
 | K16 | Fusion-Adapter, Konformität (`bwpm.adapter`) | Transfer-Matrix (s, p getrennt) und Airy; Energieerhaltung; Reziprozität der Transmission; Determinismus; Verschiebung am zentrierten Port | < 1e−12 (CUDA 1e−10 beim Determinismus), für jedes verfügbare Backend | B4e | ✅ | `test_adapter_conformance.py` |
 | K7 | Randzone der absorbierenden Maske | gleiche Rechnung im vierfach breiten Fenster ohne Maske | Fehler im Inneren < 1e−5 bei Randzone ≥ 20 λ, Ordnung 8 | B1 | ✅ | `test_boundary_and_wedge.py` |
@@ -330,6 +330,15 @@ Gitter aber als δn auf dem homogenen Wirt (`Propagator2D(..., fluctuation=δn)`
 
    Zweiter Ordnung im Schritt; Toleranz 1 % (K17) bei 0,04 µm im Bereich 60–75° nur knapp
    eingehalten. Der Rückwärtslauf streut nicht an δn (E10).
+6. **Streifende Gitterpunkte** (gefunden in B7b, `test_grazing_grid_points_stay_bounded`): Liegt
+   ein Gitterpunkt exakt auf |k⊥| = ñ₀k₀ (Regel aus §3, #25: k_z = i·10⁻¹²·k₀), wuchs ein
+   zufälliges Feld (δn = 0,03, 11 Scheiben) durch E_z = −k⊥·Ê⊥/k_z auf 10²⁶. Seitdem trägt nur der
+   propagierende, nicht streifende Teil zur Quelle bei (§10); Norm danach ≤ Eingang.
+7. **C++-Kern (B7b, CPU)** (`test_core_solver.py`): Sollwertdateien `fpwpm2d_fluctuation`
+   (2D, δn = 0,02 zufällig mit absorbierendem Fleck, Grenzfläche, Maske) und `bwpm3d_fluctuation`
+   (3D, komplexes δn, eine Iteration) auf rel 10⁻¹²; zufällige Strukturen mit δn gegen Python
+   (dx ≠ dy, mit und ohne Maske) auf 10⁻¹² des Eingangs, gemessen ≈ 10⁻¹⁶; δn ≡ 0 bitgleich.
+   CUDA unterstützt δn noch nicht (`backend="auto"` nimmt dann den CPU-Kern).
 
 ## K7: Randzone der Maske (B1)
 

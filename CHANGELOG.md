@@ -90,3 +90,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - Entscheidung E11 (#46): linearisiertes Potenzial V = 2ñ₀k₀²δn im Born-Inkrement statt
   chen2020 Gl. (1); Fehler gegen RCWA 0,1–0,8 % statt 0,3–2,1 %, neuer Test in K18. B7a
   abgenommen.
+- B7b, CPU-Kern: Born-Inkrement in `bwpm._core.Solver` (Argument `fluctuation`) und in
+  `bwpm.fast.run_2d/run_3d`; Sollwertdateien `fpwpm2d_fluctuation`, `bwpm3d_fluctuation`. CUDA noch
+  ohne δn (`backend="auto"` nutzt dann die CPU).
+- Korrektur am Born-Inkrement (gefunden in B7b): Die Quelle nimmt nur propagierende, nicht
+  streifende Wellen (Regel aus §3, #25); an exakt streifenden Gitterpunkten schaukelte sich ein
+  zufälliges Feld sonst auf (K18 Punkt 6).
