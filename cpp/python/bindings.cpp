@@ -106,6 +106,17 @@ SolverInput solver_input(std::size_t ny, std::size_t nx, double dy, double dx, d
   return in;
 }
 
+std::vector<cplx> fluctuation_input(const std::optional<C128>& fluctuation, const I32& labels) {
+  std::vector<cplx> delta;
+  if (fluctuation) {
+    if (fluctuation->ndim() != 3 || fluctuation->shape(0) != labels.shape(0) ||
+        fluctuation->shape(1) != labels.shape(1) || fluctuation->shape(2) != labels.shape(2))
+      throw std::invalid_argument("fluctuation must have the shape of labels");
+    delta.assign(fluctuation->data(), fluctuation->data() + fluctuation->size());
+  }
+  return delta;
+}
+
 }  // namespace
 
 PYBIND11_MODULE(_core, m) {
@@ -131,14 +142,7 @@ PYBIND11_MODULE(_core, m) {
                        const C128& indices, const I32& labels, cplx index_before,
                        const F64Opt& mask, int threads, const std::optional<C128>& fluctuation) {
              SolverInput in = solver_input(ny, nx, dy, dx, dz, k0, indices, labels, mask);
-             std::vector<cplx> delta;
-             if (fluctuation) {
-               if (fluctuation->ndim() != 3 || fluctuation->shape(0) != labels.shape(0) ||
-                   fluctuation->shape(1) != labels.shape(1) ||
-                   fluctuation->shape(2) != labels.shape(2))
-                 throw std::invalid_argument("fluctuation must have the shape of labels");
-               delta.assign(fluctuation->data(), fluctuation->data() + fluctuation->size());
-             }
+             std::vector<cplx> delta = fluctuation_input(fluctuation, labels);
              return bwpm::Solver(in.grid, std::move(in.indices), std::move(in.labels), in.nz,
                                  index_before, std::move(in.mask), threads, std::move(delta));
            }),
@@ -151,14 +155,16 @@ PYBIND11_MODULE(_core, m) {
 #ifdef BWPM_HAVE_CUDA
   m.attr("HAS_CUDA") = true;
   m.def("cuda_device_count", &bwpm::cuda_device_count);
-  py::class_<bwpm::CudaSolver>(m, "CudaSolver", "FPWPM/BWPM on the GPU (stage B4d).")
+  py::class_<bwpm::CudaSolver>(m, "CudaSolver", "FPWPM/BWPM on the GPU (stages B4d, B7b).")
       .def(py::init([](std::size_t ny, std::size_t nx, double dy, double dx, double dz, double k0,
                        const C128& indices, const I32& labels, cplx index_before,
-                       const F64Opt& mask, int device) {
+                       const F64Opt& mask, int device, const std::optional<C128>& fluctuation) {
              SolverInput in = solver_input(ny, nx, dy, dx, dz, k0, indices, labels, mask);
+             std::vector<cplx> delta = fluctuation_input(fluctuation, labels);
              return std::make_unique<bwpm::CudaSolver>(in.grid, std::move(in.indices),
                                                        std::move(in.labels), in.nz, index_before,
-                                                       std::move(in.mask), device);
+                                                       std::move(in.mask), device,
+                                                       std::move(delta));
            }),
            py::arg("ny"), py::arg("nx"), py::arg("dy"), py::arg("dx"), py::arg("dz"), py::arg("k0"),
            py::arg("indices"), py::arg("labels"), py::arg("index_before"), py::arg("mask"),

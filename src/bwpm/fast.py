@@ -9,8 +9,7 @@ core the reference is used. `CORE_AVAILABLE` tells which one is active.
 - `run_3d(solver, field, iterations, keep)`: like `Bidirectional3D.run`, returns `Result3D` (B4c).
 
 `backend`: "auto" (CUDA if built and a device is present, else CPU core), "cpu" or "cuda" (B4d).
-Weak index fluctuations δn (`fluctuation`, B7) run on the CPU core; the CUDA core does not support
-them yet (B7b), so "auto" then uses the CPU core and "cuda" raises.
+Weak index fluctuations δn (`fluctuation`, B7) are supported by both cores (B7b).
 """
 
 from __future__ import annotations
@@ -58,13 +57,11 @@ def _solver(
     assert _core is not None
     if backend not in ("auto", "cpu", "cuda"):
         raise ValueError("backend must be 'auto', 'cpu' or 'cuda'")
-    if fluctuation is not None and backend == "cuda":
-        raise NotImplementedError("fluctuation is not supported by the CUDA core yet (B7b)")
-    use_cuda = backend == "cuda" or (backend == "auto" and fluctuation is None and cuda_available())
+    use_cuda = backend == "cuda" or (backend == "auto" and cuda_available())
     if use_cuda:
         if not cuda_available():
             raise RuntimeError("CUDA backend requested but not built or no device present")
-        return _core.CudaSolver(*args, device)
+        return _core.CudaSolver(*args, device, fluctuation=fluctuation)
     return _core.Solver(*args, _threads(threads), fluctuation=fluctuation)
 
 
