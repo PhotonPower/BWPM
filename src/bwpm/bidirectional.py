@@ -19,6 +19,11 @@ slab j − 1 (left, medium r) and slab j (right). Behind the last slab its mediu
 One iteration is a forward pass (input plus the sources from the last backward pass) and a
 backward pass (sources from this forward pass). For planar layers and plane waves the iterations
 converge to the exact multilayer solution of the discretised stack (test K4).
+
+Weak index fluctuations δn of the propagator (`Propagator2D.fluctuation`) scatter in both passes
+(docs/spezifikation.md §10, §11; stages B7, B8): forward increment and back scattering R1 in the
+forward pass, increment R2 and forward scattering R3 of the backward field in the backward pass,
+as full-plane sources like the reflections.
 """
 
 from __future__ import annotations
@@ -29,6 +34,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from bwpm._types import ComplexArray, IntArray
+from bwpm.fluctuation import born_emission, born_sources, slab_hosts
 from bwpm.fpwpm import Propagator2D, power_flux
 from bwpm.interface import longitudinal_wavenumber, reflection_matrix, transmission_matrix
 
@@ -64,6 +70,9 @@ class Bidirectional2D:
         before = np.full((1, propagator.grid.ny), -1, dtype=np.int64)
         # medium label of every plane: plane 0 -> before (-1), plane p -> slab p - 1
         self.plane_labels: IntArray = np.concatenate([before, labels], axis=0)
+        self._hosts: list[complex | None] = [None] * labels.shape[0]
+        if propagator.fluctuation is not None:
+            self._hosts = slab_hosts(propagator.indices, labels, propagator.fluctuation)
 
     # --- operators of table 1 ------------------------------------------------------------
     def _kz(self, index: complex) -> ComplexArray:
@@ -116,6 +125,24 @@ class Bidirectional2D:
             out = out * self.p.mask[:, None]
         return np.asarray(out)
 
+    def _born(
+        self, field: ComplexArray, slab: int, direction: int
+    ) -> tuple[ComplexArray, ComplexArray] | None:
+        """Born fields of slab `slab` for the incident field of `direction`, §11: (forward, back)
+        radiated fields at the right slab edge, or None without δn in the slab."""
+        host = self._hosts[slab]
+        if host is None or self.p.fluctuation is None:
+            return None
+        g = self.p.grid
+        kx = np.zeros_like(g.ky)
+        delta = np.asarray(np.asarray(self.p.fluctuation)[slab], dtype=np.complex128)
+        sources = born_sources(
+            np.fft.fft(field, axis=0), direction, delta, host, g.k0, g.dz, kx, g.ky
+        )
+        forward = born_emission(sources, +1, host, g.k0, g.dz, kx, g.ky)
+        back = born_emission(sources, -1, host, g.k0, g.dz, kx, g.ky)
+        return forward, back
+
     # --- passes ----------------------------------------------------------------------------
     def run(
         self, field_in: ComplexArray, iterations: int = 3, keep: bool = False
@@ -139,14 +166,27 @@ class Bidirectional2D:
             e = field_in + source_fwd[0]
             forward[0] = e
             for p in range(nz):
-                source_bwd[p] = self._apply("fwd_r", e, lab[p], lab[p + 1])
-                e = self._apply("fwd_t", e, lab[p], lab[p + 1]) + source_fwd[p + 1]
+                source_bwd[p] += self._apply("fwd_r", e, lab[p], lab[p + 1])
+                born = self._born(e, p, +1)
+                e = self._apply("fwd_t", e, lab[p], lab[p + 1])
+                if born is not None:
+                    increment, back = born
+                    if self.p.mask is not None:
+                        increment = increment * self.p.mask[:, None]
+                    e = e + increment
+                    source_bwd[p + 1] += back  # R1
+                e = e + source_fwd[p + 1]
                 forward[p + 1] = e
             source_fwd = np.zeros_like(source_fwd)
             e = source_bwd[nz]
             backward[nz] = e
             for p in range(nz, 0, -1):
-                source_fwd[p] = self._apply("bwd_r", e, lab[p], lab[p - 1])
+                born = self._born(e, p - 1, -1)
+                if born is not None:
+                    scattered, increment = born
+                    e = e + increment  # R2, referred to plane p before the step
+                    source_fwd[p] += scattered  # R3
+                source_fwd[p] += self._apply("bwd_r", e, lab[p], lab[p - 1])
                 e = self._apply("bwd_t", e, lab[p], lab[p - 1]) + source_bwd[p - 1]
                 backward[p - 1] = e
             last = self._index(int(lab[nz][g.ny // 2]))
