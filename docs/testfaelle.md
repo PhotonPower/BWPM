@@ -340,8 +340,11 @@ Gitter aber als δn auf dem homogenen Wirt (`Propagator2D(..., fluctuation=δn)`
    (dx ≠ dy, mit und ohne Maske) auf 10⁻¹² des Eingangs, gemessen ≈ 10⁻¹⁶; δn ≡ 0 bitgleich.
 8. **CUDA-Kern (B7b)** (`test_core_cuda.py`): beide Sollwertdateien und zufällige Strukturen mit δn
    (auch exakt streifende Gitterpunkte) gegen den CPU-Kern auf 10⁻¹⁰; zusammen mit allen
-   bisherigen K15-Tests grün auf einer RTX 2080 (sm_75, CUDA 13.4, Windows, 2026-11-19), nicht
-   auf dem Rechner des Maintainers. Laufzeit des Vorwärtslaufs je Scheibe (ebene Welle, ein Wirt):
+   bisherigen K15-Tests grün auf einer RTX 2080 (sm_75, Windows, 2026-11-19) mit CUDA 13.4 und
+   13.5; mit 13.5 die ganze Suite inkl. `-m slow` mit Pflicht auf beide Kerne (`BWPM_REQUIRE_CORE=1`,
+   `BWPM_REQUIRE_CUDA=1`): 232 bestanden, 6 xfail (E9). Abgenommen 2026-11-19; sm_89 nicht
+   geprüft. Laufzeit des Vorwärtslaufs je Scheibe (ebene Welle, ein Wirt; bei 512² schwankte sie
+   auf dieser Laptop-GPU zwischen Läufen bis auf das Doppelte):
 
    | Gitter | CUDA ohne δn | CUDA mit δn | CPU ohne δn | CPU mit δn | 16 Brechzahlstufen statt δn (CUDA / CPU) |
    | --- | --- | --- | --- | --- | --- |

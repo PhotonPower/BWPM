@@ -98,6 +98,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   zufälliges Feld sonst auf (K18 Punkt 6).
 - B7b, CUDA-Kern: Born-Inkrement in `bwpm._core.CudaSolver` (cuFFT für drei Komponenten, δn je
   Scheibe hochgeladen); `backend="auto"` nutzt CUDA jetzt auch mit δn. Geprüft auf einer RTX 2080
-  (K18 Punkt 8, mit Laufzeiten).
+  (K18 Punkt 8, mit Laufzeiten). B7b mit CUDA 13.4 und 13.5 abgenommen; B7 abgeschlossen.
 - Build: Unter Windows mit CUDA 13 übergibt CMake `/Zc:preprocessor` an MSVC (CCCL verlangt den
   standardkonformen Präprozessor).
