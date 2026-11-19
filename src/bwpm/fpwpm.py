@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from bwpm._types import ComplexArray, FloatArray, IntArray
+from bwpm.fluctuation import born_increment, slab_hosts
 from bwpm.interface import longitudinal_wavenumber, transmission_matrix
 
 
@@ -116,14 +117,7 @@ class Propagator2D:
             raise ValueError("labels must index into `indices`")
         self._hosts = [None] * labels.shape[0]
         if self.fluctuation is not None:
-            delta = np.asarray(self.fluctuation)
-            if delta.shape != labels.shape:
-                raise ValueError("fluctuation must have the shape of labels (nz, ny)")
-            for j in range(labels.shape[0]):
-                hosts = {complex(self.indices[int(label)]) for label in labels[j][delta[j] != 0]}
-                if len(hosts) > 1:
-                    raise ValueError(f"slab {j}: fluctuation must lie in one host index")
-                self._hosts[j] = hosts.pop() if hosts else None
+            self._hosts = slab_hosts(self.indices, labels, self.fluctuation)
 
     def _operator(self, index_r: complex, index_s: complex) -> ComplexArray:
         """T_r,s(k_y)·𝒫_s with 𝒫_s = exp(i k_z,s dz) (table 1, i = 1), shape (ny, 2, 2)."""
@@ -159,40 +153,12 @@ class Propagator2D:
             out[weight] = np.fft.ifft(np.einsum("nij,nj->ni", op, spectrum), axis=0)[weight]
         if delta_n is not None and host is not None:
             delta = np.asarray(delta_n, dtype=np.complex128)
-            out = out + self._born_increment(spectrum, delta, host)
+            g = self.grid
+            kx = np.zeros_like(g.ky)
+            out = out + born_increment(spectrum, delta, host, g.k0, g.dz, kx, g.ky)
         if self.mask is not None:
             out = out * self.mask[:, None]
         return np.asarray(out)
-
-    def _born_increment(
-        self, spectrum: ComplexArray, delta_n: ComplexArray, host: complex
-    ) -> ComplexArray:
-        """Vector Born increment of one slab, §10 (chen2020 eq. (9) with sinc ≈ 1, midpoint).
-
-        ΔE⊥ = F⁻¹{e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·F{V·E_m}]⊥}, V = k₀²((ñ₀ + δn)² − ñ₀²),
-        E_m the full field (E_z from eq. (5)) propagated by dz/2 in the host ñ₀, P = I − kkᵀ/k²;
-        propagating waves only. `spectrum` is F{E⊥} at the slab entry, shape (ny, 2).
-        """
-        g = self.grid
-        ky = g.ky
-        k = host * g.k0
-        kz = longitudinal_wavenumber(host, g.k0, ky * ky)
-        half = np.exp(1j * kz * g.dz / 2)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            ez = np.where(kz != 0, -ky * spectrum[:, 1] / kz, 0.0)
-        middle = np.fft.ifft(
-            np.stack([spectrum[:, 0], spectrum[:, 1], ez], axis=1) * half[:, None], axis=0
-        )
-        potential = g.k0**2 * ((host + delta_n) ** 2 - host**2)
-        source = np.fft.fft(potential[:, None] * middle, axis=0)
-        propagating = ky * ky < np.real(k * np.conj(k))
-        safe_kz = np.where(propagating, kz, 1.0)
-        green = np.where(propagating, half * 1j * g.dz / (2 * safe_kz), 0.0)
-        projected = np.stack(
-            [source[:, 0], source[:, 1] - ky * (ky * source[:, 1] + kz * source[:, 2]) / k**2],
-            axis=1,
-        )
-        return np.asarray(np.fft.ifft(green[:, None] * projected, axis=0))
 
     def _index(self, label: int) -> complex:
         return self.index_before if label < 0 else self.indices[label]

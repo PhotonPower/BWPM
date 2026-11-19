@@ -279,7 +279,9 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   ein Fehler der Ordnung δn/ñ₀ (fehlende Fresnel-Reflexe an Ein- und Austritt) und im Mittelwert
   der Phase k₀ δn²/(2ñ₀)·L (der Term −V²/(8k³) der Ausbreitungskonstante fehlt in der
   Born-Reihe ohne Rückwärtsanteil).
-- **Umsetzung 2D:** `bwpm.fpwpm.Propagator2D(..., fluctuation=δn)`, δn der Form (nz, ny); das
-  Inkrement wird vor der Maske addiert. Gemessen in K18.
+- **Umsetzung:** `bwpm.fluctuation.born_increment`, eingebunden in
+  `bwpm.fpwpm.Propagator2D(..., fluctuation=δn)` (δn der Form (nz, ny)) und in die
+  Vorwärtsschritte von `bwpm.volume3d.Bidirectional3D(..., fluctuation=δn)` ((nz, ny, nx)); das
+  Inkrement wird vor der Maske addiert, der Rückwärtslauf streut nicht an δn. Gemessen in K18.
 - **δn = 0:** Ohne δn wird das Inkrement nicht berechnet; das Ergebnis ist bitgleich zu heute
   (K1–K16, `reference/`).

@@ -22,7 +22,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K6 | Faserfacette mit Index-Matching-Kappe, Kette Field Tracing → BWPM → Field Tracing (2D) | Fresnel, Spiegelbild des Luftfokus, analytische Plattenphase | Fokus des Reflexes −82,40 µm (Soll −82,42), Rückreflex an der Facette 4,2 % → 5,6·10⁻⁵, Strehl 0,9972 (Soll 0,9976) | B5 (2D vorgezogen) | ✅ | `test_pilot_imc.py` ([Bericht](pilot-imc-2d.md)) |
 | K6 (3D) | Faserfacette mit Index-Matching-Kappe in 3D, Kette Richards-Wolf-Spektrum → BWPM → Winkelspektrum | Fresnel je Winkel und Polarisation (flussgewichtet), Spiegelbild des Luftfokus, Fresnel Kappe → Kern/Mantel am Facettenfeld | Fokus des Reflexes −82,42 µm, Reflexionsgrad = Referenz, rücklaufender Fluss an der Facette in der Größe der Referenz, Strehl wie 2D | B5a | Hilfsfunktionen ✅, ✅ Messlauf und Diagnose B5a, vom Maintainer abgenommen (2026-11-19) | `test_pilot_imc3d.py`, `experiments/b3_scaling.py` ([Bericht](pilot-imc-3d.md)) |
 | K17 | Streuung an schwachen Lamellengittern (δn = 10⁻⁵) und einer dünnen Zufallsschicht, λ = 0,8 µm, ñ₀ = 1,38, FPWPM | erste Born-Näherung der Pixeltreppe (`bwpm.born`), selbst geprüft gegen Airy und RCWA (Abweichung O(δn)) | Born gegen Airy/RCWA < 10⁻³ und erster Ordnung in δn; FPWPM gegen Born < 10⁻³ paraxial (0,8°), < 1 % bei 29–63° | B6 | ✅ Referenz, paraxial, Ursache analytisch erklärt (2D und 3D); große Winkel verfehlt, als Gültigkeitsgrenze E9 festgehalten, Test `xfail(strict)` | `test_born.py`, `test_born_3d.py`, `experiments/born_angles.py` |
-| K18 | Schwache Fluktuationen δn mit Born-Inkrement (B7, E10): Lamellengitter und Zufallsschicht wie K17, Mehrfachstreuung bei δn = 0,01–0,03, δn = 0 | erste Born-Näherung (`bwpm.born`, K17), RCWA (`tests/rcwa_reference.py`), Energie mit E_z, bestehende Sollwerte | K17-Toleranzen ohne Anpassung, Konvergenz in dz; δn = 0 bitgleich | B7a | ◐ 2D ✅ (Born, RCWA, Fluss, bitgleich); 3D offen | `test_fluctuation.py` |
+| K18 | Schwache Fluktuationen δn mit Born-Inkrement (B7, E10): Lamellengitter und Zufallsschicht wie K17, Mehrfachstreuung bei δn = 0,01–0,03, δn = 0 | erste Born-Näherung (`bwpm.born`, K17), RCWA (`tests/rcwa_reference.py`), Energie mit E_z, bestehende Sollwerte | K17-Toleranzen ohne Anpassung, Konvergenz in dz; δn = 0 bitgleich | B7a | ✅ 2D (Born, RCWA, Fluss, bitgleich) und 3D (vektorielles Born, = 2D, bitgleich) | `test_fluctuation.py`, `test_fluctuation_3d.py` |
 
 ## K6 in 3D (B5a)
 
@@ -317,7 +317,20 @@ Gitter aber als δn auf dem homogenen Wirt (`Propagator2D(..., fluctuation=δn)`
    und 9,9·10⁻⁵ / 4,9·10⁻⁵ (TM) bei dz = 0,02 / 0,01 µm, also erster Ordnung in dz wie
    vorhergesagt (Normzuwachs O((k₀δn dz)²) je Scheibe).
 
-Offen in B7a: 3D (`Bidirectional3D` bzw. Vorwärtslauf in 3D) gegen `born_forward_3d`, Zufallsschicht.
+5. **3D** (`Bidirectional3D(..., fluctuation=δn)`, `test_fluctuation_3d.py`): δn ≡ 0 bitgleich
+   auch mit Iterationen; für in x homogene Gitter gleich dem 2D-Inkrement (< 10⁻¹²). Dünne
+   Zufallsschicht (3,2 × 3,2 × 1 µm, l_c = 0,3 µm, 8 Stufen ±2·10⁻⁵, Seed 3), x-Polarisation,
+   gegen vektorielles Born (`born_forward_3d`), Fehler (Σ|E − E_Born|²/Σ|E_Born|²)^½ über beide
+   Querkomponenten je Winkelbereich:
+
+   | Schritt (µm) | 2–20° | 20–40° | 40–60° | 60–75° |
+   | --- | --- | --- | --- | --- |
+   | 0,04 | 5,2·10⁻⁴ | 1,8·10⁻³ | 4,6·10⁻³ | 9,4·10⁻³ |
+   | 0,02 | 1,2·10⁻⁴ | 4,2·10⁻⁴ | 1,2·10⁻³ | 2,4·10⁻³ |
+   | 0,04, reine FPWPM | 0,04 | 0,13 | 0,30 | 0,57 |
+
+   Zweiter Ordnung im Schritt; Toleranz 1 % (K17) bei 0,04 µm im Bereich 60–75° nur knapp
+   eingehalten. Der Rückwärtslauf streut nicht an δn (E10).
 
 ## K7: Randzone der Maske (B1)
 
