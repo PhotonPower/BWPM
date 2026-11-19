@@ -116,3 +116,5 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B8 abgenommen (2026-11-19).
 - Entscheidung E13: Instabilität des expliziten Born-Schritts bei σ_n ≈ 0,06 (Befund aus
   Scattuccino, #29) als Grenze festgehalten; stabiler Born-Schritt als Stufe B9 aufgenommen.
+- Entwurf B9 (`docs/b9-entwurf.md`): Strang-Cayley-Schritt, Fluss am Medium aus #29 exakt
+  erhalten; der im ersten Versuch gemeldete Flussverlust war ein Messfehler (E_z fehlte).
