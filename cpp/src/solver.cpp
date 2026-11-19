@@ -124,64 +124,88 @@ void Solver::fft_components(std::vector<cplx>& data, std::size_t ncomp, bool for
                          static_cast<std::size_t>(threads_));
 }
 
-void Solver::add_born_increment(const std::vector<cplx>& in, std::size_t slab,
-                                std::vector<cplx>& out) {
-  // ΔE⊥ = F⁻¹{e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·F{V·E_m}]⊥}, V = 2ñ₀k₀²δn (E11), E_m the full
-  // field (E_z from wende2023 eq. (5)) at the slab midpoint in the host; propagating waves only,
-  // incident and scattered (E_z of grazing and evanescent waves is unbounded).
+namespace {
+// Gauss–Legendre points ζ/dz of the slab integral, weights 1/2 (§11, F1, #53)
+const double kGauss[2] = {(1.0 - 1.0 / std::sqrt(3.0)) / 2.0, (1.0 + 1.0 / std::sqrt(3.0)) / 2.0};
+}  // namespace
+
+std::vector<cplx> Solver::born_sources(const std::vector<cplx>& in, int direction,
+                                       std::size_t slab) {
+  // Ŝ_m = F{V·E_m}, E_m = F⁻¹{e^(i k_z s_m)(Ê⊥, Ê_z)}, s_m = ζ_m (d = +1) or dz − ζ_m (d = −1),
+  // Ê_z = −d·k⊥·Ê⊥/k_z (wende2023 eq. (5)), V = 2ñ₀k₀²δn (E11); propagating, non-grazing only.
   const std::size_t n = g_.ny * g_.nx;
   const cplx host = host_[slab];
-  const cplx k = host * g_.k0;
-  const cplx k2 = k * k;
   const cplx host2k2 = host * host * g_.k0 * g_.k0;  // as ñ²k₀² in longitudinal_wavenumber
   const double kabs2 = std::abs(host2k2);
   const cplx im(0.0, 1.0);
   std::vector<cplx> spectrum = in;
   fft(spectrum, true);
-  std::vector<cplx> kz(n), half(n), work(3 * n);
+  std::vector<cplx> full(3 * n), kz(n);
   std::vector<char> prop(n);
 #pragma omp parallel for num_threads(threads_) schedule(static)
   for (long long q = 0; q < static_cast<long long>(n); ++q) {
     const double kx = kx_[q], ky = ky_[q];
-    kz[q] = longitudinal_wavenumber(host, g_.k0, kx * kx + ky * ky);
-    half[q] = std::exp(im * kz[q] * g_.dz / 2.0);
     const double kp2 = kx * kx + ky * ky;
-    const bool propagating =
-        kp2 < kabs2 && std::abs(host2k2 - kp2) > kGrazingTolerance * kabs2;  // §3 (#25)
-    prop[q] = propagating;
+    kz[q] = longitudinal_wavenumber(host, g_.k0, kp2);
+    prop[q] = kp2 < kabs2 && std::abs(host2k2 - kp2) > kGrazingTolerance * kabs2;  // §3 (#25)
     const cplx ex = spectrum[2 * q], ey = spectrum[2 * q + 1];
-    const cplx ez = propagating ? -(kx * ex + ky * ey) / kz[q] : cplx(0.0, 0.0);
-    const cplx incident = propagating ? half[q] : cplx(0.0, 0.0);
-    work[3 * q] = ex * incident;
-    work[3 * q + 1] = ey * incident;
-    work[3 * q + 2] = ez * incident;
+    full[3 * q] = ex;
+    full[3 * q + 1] = ey;
+    full[3 * q + 2] = prop[q] ? -static_cast<double>(direction) * (kx * ex + ky * ey) / kz[q]
+                              : cplx(0.0, 0.0);
   }
-  fft_components(work, 3, false);
   const cplx* delta = fluct_.data() + slab * n;
   const cplx scale = 2.0 * host * g_.k0 * g_.k0;
+  std::vector<cplx> sources(6 * n), work(3 * n);
+  for (int m = 0; m < 2; ++m) {
+    const double distance = (direction > 0 ? kGauss[m] : 1.0 - kGauss[m]) * g_.dz;
 #pragma omp parallel for num_threads(threads_) schedule(static)
-  for (long long q = 0; q < static_cast<long long>(n); ++q) {
-    const cplx v = scale * delta[q];
-    for (int c = 0; c < 3; ++c) work[3 * q + c] = v * work[3 * q + c];
+    for (long long q = 0; q < static_cast<long long>(n); ++q) {
+      const cplx phase = prop[q] ? std::exp(im * kz[q] * distance) : cplx(0.0, 0.0);
+      for (int c = 0; c < 3; ++c) work[3 * q + c] = full[3 * q + c] * phase;
+    }
+    fft_components(work, 3, false);
+#pragma omp parallel for num_threads(threads_) schedule(static)
+    for (long long q = 0; q < static_cast<long long>(n); ++q) {
+      const cplx v = scale * delta[q];
+      for (int c = 0; c < 3; ++c) work[3 * q + c] = v * work[3 * q + c];
+    }
+    fft_components(work, 3, true);
+    std::copy(work.begin(), work.end(), sources.begin() + static_cast<std::ptrdiff_t>(3 * n * m));
   }
-  fft_components(work, 3, true);
-  std::vector<cplx> inc(2 * n);
+  return sources;
+}
+
+std::vector<cplx> Solver::born_emission(const std::vector<cplx>& sources, int direction,
+                                        std::size_t slab) {
+  // ΔE⊥ = F⁻¹{Σ_m ½·e^(i d′k_z(dz − ζ_m))·i dz/(2k_z)·[P(k_d′)·Ŝ_m]⊥}, k_d′ = (k_x, k_y, d′k_z).
+  const std::size_t n = g_.ny * g_.nx;
+  const cplx host = host_[slab];
+  const cplx k = host * g_.k0;
+  const cplx k2 = k * k;
+  const cplx host2k2 = host * host * g_.k0 * g_.k0;
+  const double kabs2 = std::abs(host2k2);
+  const cplx im(0.0, 1.0);
+  const double d = static_cast<double>(direction);
+  std::vector<cplx> total(2 * n, cplx(0.0, 0.0));
 #pragma omp parallel for num_threads(threads_) schedule(static)
   for (long long q = 0; q < static_cast<long long>(n); ++q) {
     const double kx = kx_[q], ky = ky_[q];
-    const cplx green =
-        prop[q] ? half[q] * (im * g_.dz / (2.0 * kz[q])) : cplx(0.0, 0.0);
-    const cplx s0 = work[3 * q], s1 = work[3 * q + 1], s2 = work[3 * q + 2];
-    const cplx longitudinal = (kx * s0 + ky * s1 + kz[q] * s2) / k2;
-    inc[2 * q] = green * (s0 - kx * longitudinal);
-    inc[2 * q + 1] = green * (s1 - ky * longitudinal);
+    const double kp2 = kx * kx + ky * ky;
+    if (!(kp2 < kabs2 && std::abs(host2k2 - kp2) > kGrazingTolerance * kabs2)) continue;
+    const cplx kz = longitudinal_wavenumber(host, g_.k0, kp2);
+    const cplx signed_kz = d * kz;
+    for (int m = 0; m < 2; ++m) {
+      const cplx green = 0.5 * std::exp(im * signed_kz * ((1.0 - kGauss[m]) * g_.dz)) *
+                         (im * g_.dz / (2.0 * kz));
+      const cplx* s = sources.data() + 3 * n * static_cast<std::size_t>(m) + 3 * q;
+      const cplx longitudinal = (kx * s[0] + ky * s[1] + signed_kz * s[2]) / k2;
+      total[2 * q] += green * (s[0] - kx * longitudinal);
+      total[2 * q + 1] += green * (s[1] - ky * longitudinal);
+    }
   }
-  fft(inc, false);
-  for (std::size_t q = 0; q < n; ++q) {
-    const double m = mask_.empty() ? 1.0 : mask_[q];
-    out[2 * q] += inc[2 * q] * m;
-    out[2 * q + 1] += inc[2 * q + 1] * m;
-  }
+  fft(total, false);
+  return total;
 }
 
 void Solver::apply(Kind kind, const std::vector<cplx>& in, std::size_t p_r, std::size_t p_s,
@@ -263,9 +287,15 @@ RunResult Solver::run(const std::vector<cplx>& field_in, int iterations,
 
   RunResult res;
   std::map<std::size_t, Sparse> src_fwd, src_bwd;
+  // Born sources of δn as full planes (F3): R1 of the forward pass, R3 of the backward pass
+  std::map<std::size_t, std::vector<cplx>> born_fwd, born_bwd;
+  auto add_plane = [](std::vector<cplx>& v, const std::vector<cplx>& w) {
+    for (std::size_t i = 0; i < v.size(); ++i) v[i] += w[i];
+  };
   std::vector<cplx> e, next;
   for (int it = 0; it < std::max(iterations, 1); ++it) {
     src_bwd.clear();
+    born_bwd.clear();
     e = field_in;
     if (auto f = src_fwd.find(0); f != src_fwd.end()) add(e, f->second);
     if (keep_set.count(0)) res.forward[0] = e;
@@ -275,18 +305,35 @@ RunResult Solver::run(const std::vector<cplx>& field_in, int iterations,
         src_bwd[p] = store(next, interface[p]);
       }
       apply(FwdT, e, p, p + 1, next);
-      if (has_host_[p]) add_born_increment(e, p, next);
+      if (has_host_[p]) {
+        const std::vector<cplx> sources = born_sources(e, +1, p);
+        const std::vector<cplx> increment = born_emission(sources, +1, p);
+        for (std::size_t q = 0; q < n; ++q) {
+          const double m = mask_.empty() ? 1.0 : mask_[q];
+          next[2 * q] += increment[2 * q] * m;
+          next[2 * q + 1] += increment[2 * q + 1] * m;
+        }
+        if (iterations > 0) born_bwd[p + 1] = born_emission(sources, -1, p);  // R1
+      }
       e.swap(next);
       if (auto f = src_fwd.find(p + 1); f != src_fwd.end()) add(e, f->second);
+      if (auto f = born_fwd.find(p + 1); f != born_fwd.end()) add_plane(e, f->second);
       if (keep_set.count(p + 1)) res.forward[p + 1] = e;
     }
     res.transmitted = e;
     if (iterations == 0) break;
     src_fwd.clear();
+    born_fwd.clear();
     e.assign(2 * n, cplx(0.0, 0.0));
     if (auto f = src_bwd.find(nz_); f != src_bwd.end()) add(e, f->second);
+    if (auto f = born_bwd.find(nz_); f != born_bwd.end()) add_plane(e, f->second);
     if (keep_set.count(nz_)) res.backward[nz_] = e;
     for (std::size_t p = nz_; p > 0; --p) {
+      if (has_host_[p - 1]) {
+        const std::vector<cplx> sources = born_sources(e, -1, p - 1);
+        born_fwd[p] = born_emission(sources, +1, p - 1);       // R3
+        add_plane(e, born_emission(sources, -1, p - 1));       // R2, referred to plane p
+      }
       if (any[p - 1]) {
         apply(BwdR, e, p, p - 1, next);
         src_fwd[p] = store(next, interface[p - 1]);
@@ -294,6 +341,7 @@ RunResult Solver::run(const std::vector<cplx>& field_in, int iterations,
       apply(BwdT, e, p, p - 1, next);
       e.swap(next);
       if (auto f = src_bwd.find(p - 1); f != src_bwd.end()) add(e, f->second);
+      if (auto f = born_bwd.find(p - 1); f != born_bwd.end()) add_plane(e, f->second);
       if (keep_set.count(p - 1)) res.backward[p - 1] = e;
     }
     res.reflected = e;

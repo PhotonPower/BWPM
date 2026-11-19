@@ -189,10 +189,32 @@ __device__ bool born_propagating(dcplx host2k2, double kp2) {
   return kp2 < kabs2 && thrust::abs(host2k2 - kp2) > kGrazingTolerance * kabs2;  // §3 (#25)
 }
 
-// spectrum: F{E⊥} (2 components) -> work3 = e^(i k_z dz/2)·(Ê_x, Ê_y, Ê_z), propagating only
-__global__ void k_born_incident(const dcplx* spectrum, dcplx* work3, std::size_t ny,
-                                std::size_t nx, double val_x, double val_y, dcplx host,
-                                double k0, double dz) {
+// Gauss–Legendre points ζ/dz of the slab integral, weights 1/2 (§11, F1, #53)
+__device__ double gauss_point(int m) {
+  const double r = 0.5773502691896257;  // 1/√3, as (1 ∓ 1/√3)/2 in cpp/src/solver.cpp
+  return m == 0 ? (1.0 - r) / 2.0 : (1.0 + r) / 2.0;
+}
+
+// spectrum: F{E⊥} -> full3 = (Ê_x, Ê_y, Ê_z), Ê_z = −d·k⊥·Ê⊥/k_z, propagating only
+__global__ void k_born_full(const dcplx* spectrum, dcplx* full3, std::size_t ny, std::size_t nx,
+                            double val_x, double val_y, dcplx host, double k0, int direction) {
+  const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (q >= ny * nx) return;
+  const double kx = fftfreq(static_cast<long long>(q % nx), static_cast<long long>(nx), val_x);
+  const double ky = fftfreq(static_cast<long long>(q / nx), static_cast<long long>(ny), val_y);
+  const double kp2 = kx * kx + ky * ky;
+  const dcplx kz = kz_of(host, k0, kp2);
+  const bool propagating = born_propagating(host * host * (k0 * k0), kp2);
+  const dcplx ex = spectrum[2 * q], ey = spectrum[2 * q + 1];
+  full3[3 * q] = ex;
+  full3[3 * q + 1] = ey;
+  full3[3 * q + 2] =
+      propagating ? -static_cast<double>(direction) * (kx * ex + ky * ey) / kz : dcplx(0.0, 0.0);
+}
+
+// work3 = e^(i k_z s)·full3 (s = distance to the Gauss point), propagating only
+__global__ void k_born_phase(const dcplx* full3, dcplx* work3, std::size_t ny, std::size_t nx,
+                             double val_x, double val_y, dcplx host, double k0, double distance) {
   const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
   if (q >= ny * nx) return;
   const double kx = fftfreq(static_cast<long long>(q % nx), static_cast<long long>(nx), val_x);
@@ -200,14 +222,10 @@ __global__ void k_born_incident(const dcplx* spectrum, dcplx* work3, std::size_t
   const double kp2 = kx * kx + ky * ky;
   const dcplx kz = kz_of(host, k0, kp2);
   const dcplx im(0.0, 1.0);
-  const dcplx half = thrust::exp(im * kz * dz / 2.0);
-  const bool propagating = born_propagating(host * host * (k0 * k0), kp2);
-  const dcplx ex = spectrum[2 * q], ey = spectrum[2 * q + 1];
-  const dcplx ez = propagating ? -(kx * ex + ky * ey) / kz : dcplx(0.0, 0.0);
-  const dcplx incident = propagating ? half : dcplx(0.0, 0.0);
-  work3[3 * q] = ex * incident;
-  work3[3 * q + 1] = ey * incident;
-  work3[3 * q + 2] = ez * incident;
+  const dcplx phase = born_propagating(host * host * (k0 * k0), kp2)
+                          ? thrust::exp(im * kz * distance)
+                          : dcplx(0.0, 0.0);
+  for (int c = 0; c < 3; ++c) work3[3 * q + c] = full3[3 * q + c] * phase;
 }
 
 // work3 = V·E_m with V = 2ñ₀k₀²δn (E11); `norm` completes the unnormalised inverse FFT
@@ -219,26 +237,32 @@ __global__ void k_born_potential(dcplx* work3, const dcplx* delta, dcplx scale, 
   for (int c = 0; c < 3; ++c) work3[3 * q + c] = v * work3[3 * q + c];
 }
 
-// work3 = F{V·E_m} -> inc = e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·Ŝ]⊥, propagating only
-__global__ void k_born_scattered(const dcplx* work3, dcplx* inc, std::size_t ny, std::size_t nx,
-                                 double val_x, double val_y, dcplx host, double k0, double dz) {
+// sources (2 Gauss points × 3) -> total = Σ_m ½·e^(i d′k_z(dz − ζ_m))·i dz/(2k_z)·[P(k_d′)·Ŝ_m]⊥
+__global__ void k_born_emit(const dcplx* sources, dcplx* total, std::size_t ny, std::size_t nx,
+                            double val_x, double val_y, dcplx host, double k0, double dz,
+                            int direction) {
   const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
-  if (q >= ny * nx) return;
+  const std::size_t n = ny * nx;
+  if (q >= n) return;
   const double kx = fftfreq(static_cast<long long>(q % nx), static_cast<long long>(nx), val_x);
   const double ky = fftfreq(static_cast<long long>(q / nx), static_cast<long long>(ny), val_y);
   const double kp2 = kx * kx + ky * ky;
+  total[2 * q] = 0.0;
+  total[2 * q + 1] = 0.0;
+  if (!born_propagating(host * host * (k0 * k0), kp2)) return;
   const dcplx kz = kz_of(host, k0, kp2);
+  const dcplx signed_kz = static_cast<double>(direction) * kz;
   const dcplx im(0.0, 1.0);
-  const dcplx half = thrust::exp(im * kz * dz / 2.0);
   const dcplx k = host * k0;
   const dcplx k2 = k * k;
-  const dcplx green = born_propagating(host * host * (k0 * k0), kp2)
-                          ? half * (im * dz / (2.0 * kz))
-                          : dcplx(0.0, 0.0);
-  const dcplx s0 = work3[3 * q], s1 = work3[3 * q + 1], s2 = work3[3 * q + 2];
-  const dcplx longitudinal = (kx * s0 + ky * s1 + kz * s2) / k2;
-  inc[2 * q] = green * (s0 - kx * longitudinal);
-  inc[2 * q + 1] = green * (s1 - ky * longitudinal);
+  for (int m = 0; m < 2; ++m) {
+    const dcplx green =
+        0.5 * thrust::exp(im * signed_kz * ((1.0 - gauss_point(m)) * dz)) * (im * dz / (2.0 * kz));
+    const dcplx* src = sources + 3 * n * static_cast<std::size_t>(m) + 3 * q;
+    const dcplx longitudinal = (kx * src[0] + ky * src[1] + signed_kz * src[2]) / k2;
+    total[2 * q] += green * (src[0] - kx * longitudinal);
+    total[2 * q + 1] += green * (src[1] - ky * longitudinal);
+  }
 }
 
 // out += inc·norm·mask (mask may be null)
@@ -282,7 +306,7 @@ struct CudaSolver::Impl {
   std::vector<cplx> fluct;
   std::vector<char> has_host;
   std::vector<cplx> host;
-  DeviceBuffer<dcplx> delta, work3, inc;
+  DeviceBuffer<dcplx> delta, full3, work3, sources, inc;
   cufftHandle plan3{};
   bool plan3_ok = false;
   std::vector<std::set<std::pair<std::int32_t, std::int32_t>>> pairs_fwd;  // pairs of step p
@@ -295,35 +319,62 @@ struct CudaSolver::Impl {
     return l < 0 ? index_before : indices[static_cast<std::size_t>(l)];
   }
 
-  // out += Born increment of slab `slab`; `spectrum` must hold F{E⊥} of the slab entry field
-  void add_born_increment(std::size_t slab, DeviceBuffer<dcplx>& out) {
+  // Born sources of slab `slab` at the Gauss points (§11) into `sources`; `spectrum` must hold
+  // F{E⊥} of the incident field of `direction` (+1 left slab edge, −1 right slab edge)
+  void born_sources(std::size_t slab, int direction) {
     const std::size_t nn = n();
     const double val_x = 1.0 / (static_cast<double>(g.nx) * g.dx);
     const double val_y = 1.0 / (static_cast<double>(g.ny) * g.dy);
     const double norm = 1.0 / static_cast<double>(nn);
     const dcplx h(host[slab].real(), host[slab].imag());
     delta.upload(reinterpret_cast<const dcplx*>(fluct.data()) + slab * nn, nn);
-    k_born_incident<<<blocks(nn), kThreads>>>(spectrum.ptr, work3.ptr, g.ny, g.nx, val_x, val_y,
-                                              h, g.k0, g.dz);
-    check(cudaGetLastError(), "k_born_incident");
-    check(cufftExecZ2Z(plan3, reinterpret_cast<cufftDoubleComplex*>(work3.ptr),
-                       reinterpret_cast<cufftDoubleComplex*>(work3.ptr), CUFFT_INVERSE),
-          "inverse FFT (Born)");
-    k_born_potential<<<blocks(nn), kThreads>>>(work3.ptr, delta.ptr, 2.0 * h * (g.k0 * g.k0),
-                                               norm, nn);
-    check(cudaGetLastError(), "k_born_potential");
-    check(cufftExecZ2Z(plan3, reinterpret_cast<cufftDoubleComplex*>(work3.ptr),
-                       reinterpret_cast<cufftDoubleComplex*>(work3.ptr), CUFFT_FORWARD),
-          "forward FFT (Born)");
-    k_born_scattered<<<blocks(nn), kThreads>>>(work3.ptr, inc.ptr, g.ny, g.nx, val_x, val_y, h,
-                                               g.k0, g.dz);
-    check(cudaGetLastError(), "k_born_scattered");
+    k_born_full<<<blocks(nn), kThreads>>>(spectrum.ptr, full3.ptr, g.ny, g.nx, val_x, val_y, h,
+                                          g.k0, direction);
+    check(cudaGetLastError(), "k_born_full");
+    const double r = 0.5773502691896257;
+    const double gauss[2] = {(1.0 - r) / 2.0, (1.0 + r) / 2.0};
+    for (int m = 0; m < 2; ++m) {
+      const double distance = (direction > 0 ? gauss[m] : 1.0 - gauss[m]) * g.dz;
+      k_born_phase<<<blocks(nn), kThreads>>>(full3.ptr, work3.ptr, g.ny, g.nx, val_x, val_y, h,
+                                             g.k0, distance);
+      check(cudaGetLastError(), "k_born_phase");
+      check(cufftExecZ2Z(plan3, reinterpret_cast<cufftDoubleComplex*>(work3.ptr),
+                         reinterpret_cast<cufftDoubleComplex*>(work3.ptr), CUFFT_INVERSE),
+            "inverse FFT (Born)");
+      k_born_potential<<<blocks(nn), kThreads>>>(work3.ptr, delta.ptr, 2.0 * h * (g.k0 * g.k0),
+                                                 norm, nn);
+      check(cudaGetLastError(), "k_born_potential");
+      check(cufftExecZ2Z(plan3, reinterpret_cast<cufftDoubleComplex*>(work3.ptr),
+                         reinterpret_cast<cufftDoubleComplex*>(sources.ptr + 3 * nn * m),
+                         CUFFT_FORWARD),
+            "forward FFT (Born)");
+    }
+  }
+
+  // out += (field radiated by `sources` in `direction` at the right slab edge)·mask
+  void add_born_emission(std::size_t slab, int direction, DeviceBuffer<dcplx>& out,
+                         bool masked) {
+    const std::size_t nn = n();
+    const double val_x = 1.0 / (static_cast<double>(g.nx) * g.dx);
+    const double val_y = 1.0 / (static_cast<double>(g.ny) * g.dy);
+    const double norm = 1.0 / static_cast<double>(nn);
+    const dcplx h(host[slab].real(), host[slab].imag());
+    k_born_emit<<<blocks(nn), kThreads>>>(sources.ptr, inc.ptr, g.ny, g.nx, val_x, val_y, h,
+                                          g.k0, g.dz, direction);
+    check(cudaGetLastError(), "k_born_emit");
     check(cufftExecZ2Z(plan, reinterpret_cast<cufftDoubleComplex*>(inc.ptr),
                        reinterpret_cast<cufftDoubleComplex*>(inc.ptr), CUFFT_INVERSE),
-          "inverse FFT (Born increment)");
-    k_born_add<<<blocks(nn), kThreads>>>(out.ptr, inc.ptr, has_mask ? mask.ptr : nullptr, norm,
-                                         nn);
+          "inverse FFT (Born emission)");
+    k_born_add<<<blocks(nn), kThreads>>>(out.ptr, inc.ptr,
+                                         masked && has_mask ? mask.ptr : nullptr, norm, nn);
     check(cudaGetLastError(), "k_born_add");
+  }
+
+  // F{field} into `spectrum`
+  void transform(const DeviceBuffer<dcplx>& field) {
+    check(cufftExecZ2Z(plan, reinterpret_cast<cufftDoubleComplex*>(field.ptr),
+                       reinterpret_cast<cufftDoubleComplex*>(spectrum.ptr), CUFFT_FORWARD),
+          "forward FFT (Born incident)");
   }
 
   // out = Σ_pairs I_r,s F⁻¹{M F{in}} (reflections skip equal indices), mask on transmissions
@@ -420,7 +471,9 @@ CudaSolver::CudaSolver(Grid grid, std::vector<cplx> indices, std::vector<std::in
           s.host[j] = idx;
         }
       s.delta = DeviceBuffer<dcplx>(nn);
+      s.full3 = DeviceBuffer<dcplx>(3 * nn);
       s.work3 = DeviceBuffer<dcplx>(3 * nn);
+      s.sources = DeviceBuffer<dcplx>(6 * nn);
       s.inc = DeviceBuffer<dcplx>(2 * nn);
       // 2D FFT of three interleaved components (E_x, E_y, E_z): stride 3, distance 1, batch 3
       check(cufftPlanMany(&s.plan3, 2, dims, dims, 3, 1, dims, 3, 1, CUFFT_Z2Z, 3),
@@ -494,8 +547,20 @@ RunResult CudaSolver::run(const std::vector<cplx>& field_in, int iterations,
   // sources: from backward reflections at plane p (interface p − 1) and forward reflections at
   // plane p (interface p); both keyed by the interface index used to gather them
   std::map<std::size_t, Sources> src_fwd, src_bwd;
+  // Born sources of δn as full planes on the device (F3): R1 of the forward pass, R3 backward
+  std::map<std::size_t, DeviceBuffer<dcplx>> born_fwd, born_bwd;
+  auto zero_plane = [&]() {
+    DeviceBuffer<dcplx> b(2 * nn);
+    check(cudaMemset(b.ptr, 0, 2 * nn * sizeof(dcplx)), "memset");
+    return b;
+  };
+  auto add_plane = [&](DeviceBuffer<dcplx>& field, const DeviceBuffer<dcplx>& plane) {
+    k_born_add<<<blocks(nn), kThreads>>>(field.ptr, plane.ptr, nullptr, 1.0, nn);
+    check(cudaGetLastError(), "k_born_add (plane)");
+  };
   for (int it = 0; it < std::max(iterations, 1); ++it) {
     src_bwd.clear();
+    born_bwd.clear();
     check(cudaMemcpy(e.ptr, input.ptr, 2 * nn * sizeof(dcplx), cudaMemcpyDeviceToDevice), "copy");
     if (auto f = src_fwd.find(0); f != src_fwd.end()) add(e, f->second, 0);
     if (keep_set.count(0)) res.forward[0] = to_host(e);
@@ -505,18 +570,35 @@ RunResult CudaSolver::run(const std::vector<cplx>& field_in, int iterations,
         src_bwd[p] = gather(next, p);
       }
       s.apply(0, e, p, p + 1, next);  // leaves F{e} in s.spectrum
-      if (s.has_host[p]) s.add_born_increment(p, next);
+      if (s.has_host[p]) {
+        s.born_sources(p, +1);
+        s.add_born_emission(p, +1, next, true);
+        if (iterations > 0) {  // R1
+          born_bwd[p + 1] = zero_plane();
+          s.add_born_emission(p, -1, born_bwd[p + 1], false);
+        }
+      }
       std::swap(e, next);
       // backward reflection at interface p was stored for plane p + 1
       if (auto f = src_fwd.find(p + 1); f != src_fwd.end()) add(e, f->second, p);
+      if (auto f = born_fwd.find(p + 1); f != born_fwd.end()) add_plane(e, f->second);
       if (keep_set.count(p + 1)) res.forward[p + 1] = to_host(e);
     }
     res.transmitted = to_host(e);
     if (iterations == 0) break;
     src_fwd.clear();
+    born_fwd.clear();
     check(cudaMemset(e.ptr, 0, 2 * nn * sizeof(dcplx)), "memset");
+    if (auto f = born_bwd.find(s.nz); f != born_bwd.end()) add_plane(e, f->second);
     if (keep_set.count(s.nz)) res.backward[s.nz] = to_host(e);
     for (std::size_t p = s.nz; p > 0; --p) {
+      if (s.has_host[p - 1]) {
+        s.transform(e);
+        s.born_sources(p - 1, -1);
+        born_fwd[p] = zero_plane();
+        s.add_born_emission(p - 1, +1, born_fwd[p], false);  // R3
+        s.add_born_emission(p - 1, -1, e, false);            // R2, referred to plane p
+      }
       if (!interface_host[p - 1].empty()) {
         s.apply(3, e, p, p - 1, next);
         src_fwd[p] = gather(next, p - 1);
@@ -524,6 +606,7 @@ RunResult CudaSolver::run(const std::vector<cplx>& field_in, int iterations,
       s.apply(2, e, p, p - 1, next);
       std::swap(e, next);
       if (auto f = src_bwd.find(p - 1); f != src_bwd.end()) add(e, f->second, p - 1);
+      if (auto f = born_bwd.find(p - 1); f != born_bwd.end()) add_plane(e, f->second);
       if (keep_set.count(p - 1)) res.backward[p - 1] = to_host(e);
     }
     res.reflected = to_host(e);

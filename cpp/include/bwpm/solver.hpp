@@ -4,8 +4,9 @@
 // Specification: docs/spezifikation.md, sections 4 and 5; table 1 of wende2023 (i = 1 … 4).
 // Planes p = 0 … nz, plane p belongs to slab p − 1 (plane 0 to `index_before`); fields (ny, nx, 2)
 // in C order with components (E_x, E_y); centred grids; k in 1/mm, lengths in mm.
-// Optional weak index fluctuations δn (nz, ny, nx) add the vector Born increment in the forward
-// transmission steps (stage B7b; docs/spezifikation.md §10, decisions E10/E11; bwpm/fluctuation.py).
+// Optional weak index fluctuations δn (nz, ny, nx) scatter with the vector Born approximation in
+// both passes: forward increment and back scattering R1, increment R2 and forward scattering R3 of
+// the backward field (stages B7b, B8b; docs/spezifikation.md §10, §11; bwpm/fluctuation.py).
 #pragma once
 
 #include <complex>
@@ -57,8 +58,12 @@ class Solver {
              std::vector<cplx>& out);
   // FFT over (ny, nx) of `ncomp` interleaved components.
   void fft_components(std::vector<cplx>& data, std::size_t ncomp, bool forward) const;
-  // out += Born increment of slab `slab` computed from the field `in` at its entry (§10).
-  void add_born_increment(const std::vector<cplx>& in, std::size_t slab, std::vector<cplx>& out);
+  // Born sources F{V·E_m} of slab `slab` at the two Gauss points (§11) for the incident field
+  // `in` of `direction` (+1 at the left slab edge, −1 at the right edge); (2, ny, nx, 3).
+  std::vector<cplx> born_sources(const std::vector<cplx>& in, int direction, std::size_t slab);
+  // Field radiated by the sources in `direction`, at the right slab edge, real space (ny, nx, 2).
+  std::vector<cplx> born_emission(const std::vector<cplx>& sources, int direction,
+                                  std::size_t slab);
 
   Grid g_;
   std::vector<cplx> indices_;
