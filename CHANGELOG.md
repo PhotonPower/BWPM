@@ -96,3 +96,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - Korrektur am Born-Inkrement (gefunden in B7b): Die Quelle nimmt nur propagierende, nicht
   streifende Wellen (Regel aus §3, #25); an exakt streifenden Gitterpunkten schaukelte sich ein
   zufälliges Feld sonst auf (K18 Punkt 6).
+- B7b, CUDA-Kern: Born-Inkrement in `bwpm._core.CudaSolver` (cuFFT für drei Komponenten, δn je
+  Scheibe hochgeladen); `backend="auto"` nutzt CUDA jetzt auch mit δn. Geprüft auf einer RTX 2080
+  (K18 Punkt 8, mit Laufzeiten).
+- Build: Unter Windows mit CUDA 13 übergibt CMake `/Zc:preprocessor` an MSVC (CCCL verlangt den
+  standardkonformen Präprozessor).

@@ -13,7 +13,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K12 | 3D in x homogen = 2D; dünn gespeicherte Reflexe = voll gespeicherte | 2D-BWPM; volle Speicherung | < 1e−12 bzw. bitgleich, Speicher < 1/5 | B3 | ✅ | `test_volume3d.py` |
 | K13 | C++-Kern: Grenzflächenmatrizen (`bwpm._core`) | Sollwertdatei `interface_matrices`; Python-Referenz auf einem FFT-Gitter mit k⊥ = 0, streifend, evaneszent | Dateitoleranz bzw. < 1e−13 | B4b | ✅ | `test_core_interface.py` |
 | K14 | C++-Kern: FPWPM/BWPM in 2D und 3D (`bwpm._core.Solver`, `bwpm.fast.run_2d/run_3d`) | alle Sollwertdateien unter `reference/`; Python-Referenz auf zufälligen 3D-Volumina (vier Materialien inkl. Silber, mit und ohne Maske, dx ≠ dy) | Dateitoleranz bzw. < 1e−12 des Eingangs; gespeicherte Reflexwerte gleich; Threads ändern nichts | B4c, B7b | ✅ (B7b: δn, K18 Punkt 7) | `test_core_solver.py` |
-| K15 | CUDA-Kern (`bwpm._core.CudaSolver`, `backend="cuda"`) | alle Sollwertdateien; CPU-Kern auf zufälligen 3D-Volumina | rel 1e−10, abs 1e−11 des Maximums; CUDA gegen CPU ≈ 1e−16 | B4d | ✅ (Server, 2026-11-06) | `test_core_cuda.py` |
+| K15 | CUDA-Kern (`bwpm._core.CudaSolver`, `backend="cuda"`) | alle Sollwertdateien; CPU-Kern auf zufälligen 3D-Volumina | rel 1e−10, abs 1e−11 des Maximums; CUDA gegen CPU ≈ 1e−16 | B4d, B7b | ✅ (Server, 2026-11-06; B7b mit δn auf RTX 2080, 2026-11-19) | `test_core_cuda.py` |
 | K16 | Fusion-Adapter, Konformität (`bwpm.adapter`) | Transfer-Matrix (s, p getrennt) und Airy; Energieerhaltung; Reziprozität der Transmission; Determinismus; Verschiebung am zentrierten Port | < 1e−12 (CUDA 1e−10 beim Determinismus), für jedes verfügbare Backend | B4e | ✅ | `test_adapter_conformance.py` |
 | K7 | Randzone der absorbierenden Maske | gleiche Rechnung im vierfach breiten Fenster ohne Maske | Fehler im Inneren < 1e−5 bei Randzone ≥ 20 λ, Ordnung 8 | B1 | ✅ | `test_boundary_and_wedge.py` |
 | K8 | gekippter Glaskeil (Flächenwinkel 0–60°) | Snellius und Fresnel an der gekippten Fläche | Richtung < 0,02° bis 45°; Leistung weicht bis 7 % ab (Grenze des Verfahrens); R folgt in B2 | B1 | ✅ | `test_boundary_and_wedge.py` |
@@ -338,7 +338,18 @@ Gitter aber als δn auf dem homogenen Wirt (`Propagator2D(..., fluctuation=δn)`
    (2D, δn = 0,02 zufällig mit absorbierendem Fleck, Grenzfläche, Maske) und `bwpm3d_fluctuation`
    (3D, komplexes δn, eine Iteration) auf rel 10⁻¹²; zufällige Strukturen mit δn gegen Python
    (dx ≠ dy, mit und ohne Maske) auf 10⁻¹² des Eingangs, gemessen ≈ 10⁻¹⁶; δn ≡ 0 bitgleich.
-   CUDA unterstützt δn noch nicht (`backend="auto"` nimmt dann den CPU-Kern).
+8. **CUDA-Kern (B7b)** (`test_core_cuda.py`): beide Sollwertdateien und zufällige Strukturen mit δn
+   (auch exakt streifende Gitterpunkte) gegen den CPU-Kern auf 10⁻¹⁰; zusammen mit allen
+   bisherigen K15-Tests grün auf einer RTX 2080 (sm_75, CUDA 13.4, Windows, 2026-11-19), nicht
+   auf dem Rechner des Maintainers. Laufzeit des Vorwärtslaufs je Scheibe (ebene Welle, ein Wirt):
+
+   | Gitter | CUDA ohne δn | CUDA mit δn | CPU ohne δn | CPU mit δn | 16 Brechzahlstufen statt δn (CUDA / CPU) |
+   | --- | --- | --- | --- | --- | --- |
+   | 256² | 5,2 ms | 6,8 ms | 15,5 ms | 29,0 ms | 99,6 ms / 514 ms |
+   | 512² | 22,0 ms | 31,4 ms | 67,9 ms | 131 ms | – |
+
+   δn kostet auf der GPU 30–40 % mehr als die homogene Scheibe und ist 15-mal schneller als die
+   Darstellung durch 16 Stufen (bis zu 256 Paare I_r,s je Scheibe, wie in Scattuccino S9b-2).
 
 ## K7: Randzone der Maske (B1)
 

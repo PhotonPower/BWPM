@@ -4,6 +4,7 @@
 // p = 0 … nz, table 1 of wende2023, sparse reflection sources. Differences: FFTs with cuFFT
 // (double complex), T and R with propagation factor computed inside the kernel instead of a
 // cache (D6), labels uploaded per plane. Fields stay on the device during a run.
+// Weak index fluctuations δn as in bwpm::Solver (stage B7b), δn uploaded per slab.
 #pragma once
 
 #include <cstdint>
@@ -19,7 +20,8 @@ int cuda_device_count();
 class CudaSolver {
  public:
   CudaSolver(Grid grid, std::vector<cplx> indices, std::vector<std::int32_t> labels,
-             std::size_t nz, cplx index_before, std::vector<double> mask, int device);
+             std::size_t nz, cplx index_before, std::vector<double> mask, int device,
+             std::vector<cplx> fluctuation = {});
   ~CudaSolver();
   CudaSolver(const CudaSolver&) = delete;
   CudaSolver& operator=(const CudaSolver&) = delete;

@@ -182,6 +182,75 @@ __global__ void k_add(dcplx* field, const int* index, const dcplx* values, std::
   field[2 * static_cast<std::size_t>(index[j]) + 1] += values[2 * j + 1];
 }
 
+// ---- Born increment for weak fluctuations (docs/spezifikation.md §10, as cpp/src/solver.cpp) --
+
+__device__ bool born_propagating(dcplx host2k2, double kp2) {
+  const double kabs2 = thrust::abs(host2k2);
+  return kp2 < kabs2 && thrust::abs(host2k2 - kp2) > kGrazingTolerance * kabs2;  // §3 (#25)
+}
+
+// spectrum: F{E⊥} (2 components) -> work3 = e^(i k_z dz/2)·(Ê_x, Ê_y, Ê_z), propagating only
+__global__ void k_born_incident(const dcplx* spectrum, dcplx* work3, std::size_t ny,
+                                std::size_t nx, double val_x, double val_y, dcplx host,
+                                double k0, double dz) {
+  const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (q >= ny * nx) return;
+  const double kx = fftfreq(static_cast<long long>(q % nx), static_cast<long long>(nx), val_x);
+  const double ky = fftfreq(static_cast<long long>(q / nx), static_cast<long long>(ny), val_y);
+  const double kp2 = kx * kx + ky * ky;
+  const dcplx kz = kz_of(host, k0, kp2);
+  const dcplx im(0.0, 1.0);
+  const dcplx half = thrust::exp(im * kz * dz / 2.0);
+  const bool propagating = born_propagating(host * host * (k0 * k0), kp2);
+  const dcplx ex = spectrum[2 * q], ey = spectrum[2 * q + 1];
+  const dcplx ez = propagating ? -(kx * ex + ky * ey) / kz : dcplx(0.0, 0.0);
+  const dcplx incident = propagating ? half : dcplx(0.0, 0.0);
+  work3[3 * q] = ex * incident;
+  work3[3 * q + 1] = ey * incident;
+  work3[3 * q + 2] = ez * incident;
+}
+
+// work3 = V·E_m with V = 2ñ₀k₀²δn (E11); `norm` completes the unnormalised inverse FFT
+__global__ void k_born_potential(dcplx* work3, const dcplx* delta, dcplx scale, double norm,
+                                 std::size_t n) {
+  const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (q >= n) return;
+  const dcplx v = scale * delta[q] * norm;
+  for (int c = 0; c < 3; ++c) work3[3 * q + c] = v * work3[3 * q + c];
+}
+
+// work3 = F{V·E_m} -> inc = e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·Ŝ]⊥, propagating only
+__global__ void k_born_scattered(const dcplx* work3, dcplx* inc, std::size_t ny, std::size_t nx,
+                                 double val_x, double val_y, dcplx host, double k0, double dz) {
+  const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (q >= ny * nx) return;
+  const double kx = fftfreq(static_cast<long long>(q % nx), static_cast<long long>(nx), val_x);
+  const double ky = fftfreq(static_cast<long long>(q / nx), static_cast<long long>(ny), val_y);
+  const double kp2 = kx * kx + ky * ky;
+  const dcplx kz = kz_of(host, k0, kp2);
+  const dcplx im(0.0, 1.0);
+  const dcplx half = thrust::exp(im * kz * dz / 2.0);
+  const dcplx k = host * k0;
+  const dcplx k2 = k * k;
+  const dcplx green = born_propagating(host * host * (k0 * k0), kp2)
+                          ? half * (im * dz / (2.0 * kz))
+                          : dcplx(0.0, 0.0);
+  const dcplx s0 = work3[3 * q], s1 = work3[3 * q + 1], s2 = work3[3 * q + 2];
+  const dcplx longitudinal = (kx * s0 + ky * s1 + kz * s2) / k2;
+  inc[2 * q] = green * (s0 - kx * longitudinal);
+  inc[2 * q + 1] = green * (s1 - ky * longitudinal);
+}
+
+// out += inc·norm·mask (mask may be null)
+__global__ void k_born_add(dcplx* out, const dcplx* inc, const double* mask, double norm,
+                           std::size_t n) {
+  const std::size_t q = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
+  if (q >= n) return;
+  const double m = mask ? mask[q] * norm : norm;
+  out[2 * q] += inc[2 * q] * m;
+  out[2 * q + 1] += inc[2 * q + 1] * m;
+}
+
 constexpr int kThreads = 256;
 unsigned blocks(std::size_t n) { return static_cast<unsigned>((n + kThreads - 1) / kThreads); }
 
@@ -209,6 +278,13 @@ struct CudaSolver::Impl {
   DeviceBuffer<dcplx> spectrum, work;
   cufftHandle plan{};
   bool plan_ok = false;
+  // weak fluctuations (B7b): δn on the host, uploaded per slab
+  std::vector<cplx> fluct;
+  std::vector<char> has_host;
+  std::vector<cplx> host;
+  DeviceBuffer<dcplx> delta, work3, inc;
+  cufftHandle plan3{};
+  bool plan3_ok = false;
   std::vector<std::set<std::pair<std::int32_t, std::int32_t>>> pairs_fwd;  // pairs of step p
 
   std::size_t n() const { return g.ny * g.nx; }
@@ -217,6 +293,37 @@ struct CudaSolver::Impl {
   }
   cplx index_of(std::int32_t l) const {
     return l < 0 ? index_before : indices[static_cast<std::size_t>(l)];
+  }
+
+  // out += Born increment of slab `slab`; `spectrum` must hold F{E⊥} of the slab entry field
+  void add_born_increment(std::size_t slab, DeviceBuffer<dcplx>& out) {
+    const std::size_t nn = n();
+    const double val_x = 1.0 / (static_cast<double>(g.nx) * g.dx);
+    const double val_y = 1.0 / (static_cast<double>(g.ny) * g.dy);
+    const double norm = 1.0 / static_cast<double>(nn);
+    const dcplx h(host[slab].real(), host[slab].imag());
+    delta.upload(reinterpret_cast<const dcplx*>(fluct.data()) + slab * nn, nn);
+    k_born_incident<<<blocks(nn), kThreads>>>(spectrum.ptr, work3.ptr, g.ny, g.nx, val_x, val_y,
+                                              h, g.k0, g.dz);
+    check(cudaGetLastError(), "k_born_incident");
+    check(cufftExecZ2Z(plan3, reinterpret_cast<cufftDoubleComplex*>(work3.ptr),
+                       reinterpret_cast<cufftDoubleComplex*>(work3.ptr), CUFFT_INVERSE),
+          "inverse FFT (Born)");
+    k_born_potential<<<blocks(nn), kThreads>>>(work3.ptr, delta.ptr, 2.0 * h * (g.k0 * g.k0),
+                                               norm, nn);
+    check(cudaGetLastError(), "k_born_potential");
+    check(cufftExecZ2Z(plan3, reinterpret_cast<cufftDoubleComplex*>(work3.ptr),
+                       reinterpret_cast<cufftDoubleComplex*>(work3.ptr), CUFFT_FORWARD),
+          "forward FFT (Born)");
+    k_born_scattered<<<blocks(nn), kThreads>>>(work3.ptr, inc.ptr, g.ny, g.nx, val_x, val_y, h,
+                                               g.k0, g.dz);
+    check(cudaGetLastError(), "k_born_scattered");
+    check(cufftExecZ2Z(plan, reinterpret_cast<cufftDoubleComplex*>(inc.ptr),
+                       reinterpret_cast<cufftDoubleComplex*>(inc.ptr), CUFFT_INVERSE),
+          "inverse FFT (Born increment)");
+    k_born_add<<<blocks(nn), kThreads>>>(out.ptr, inc.ptr, has_mask ? mask.ptr : nullptr, norm,
+                                         nn);
+    check(cudaGetLastError(), "k_born_add");
   }
 
   // out = Σ_pairs I_r,s F⁻¹{M F{in}} (reflections skip equal indices), mask on transmissions
@@ -259,7 +366,8 @@ struct CudaSolver::Impl {
 };
 
 CudaSolver::CudaSolver(Grid grid, std::vector<cplx> indices, std::vector<std::int32_t> labels,
-                       std::size_t nz, cplx index_before, std::vector<double> mask, int device)
+                       std::size_t nz, cplx index_before, std::vector<double> mask, int device,
+                       std::vector<cplx> fluctuation)
     : impl_(new Impl) {
   Impl& s = *impl_;
   try {
@@ -295,7 +403,32 @@ CudaSolver::CudaSolver(Grid grid, std::vector<cplx> indices, std::vector<std::in
       const std::int32_t* b = s.plane(p + 1);
       for (std::size_t q = 0; q < nn; ++q) s.pairs_fwd[p].emplace(a[q], b[q]);
     }
+    s.fluct = std::move(fluctuation);
+    s.has_host.assign(nz, 0);
+    s.host.assign(nz, cplx(0.0, 0.0));
+    if (!s.fluct.empty()) {
+      if (s.fluct.size() != nz * nn)
+        throw std::invalid_argument("fluctuation must have the shape of labels (nz, ny, nx)");
+      for (std::size_t j = 0; j < nz; ++j)
+        for (std::size_t q = 0; q < nn; ++q) {
+          if (s.fluct[j * nn + q] == cplx(0.0, 0.0)) continue;
+          const cplx idx = s.indices[static_cast<std::size_t>(s.labels[j * nn + q])];
+          if (s.has_host[j] && s.host[j] != idx)
+            throw std::invalid_argument("slab " + std::to_string(j) +
+                                        ": fluctuation must lie in one host index");
+          s.has_host[j] = 1;
+          s.host[j] = idx;
+        }
+      s.delta = DeviceBuffer<dcplx>(nn);
+      s.work3 = DeviceBuffer<dcplx>(3 * nn);
+      s.inc = DeviceBuffer<dcplx>(2 * nn);
+      // 2D FFT of three interleaved components (E_x, E_y, E_z): stride 3, distance 1, batch 3
+      check(cufftPlanMany(&s.plan3, 2, dims, dims, 3, 1, dims, 3, 1, CUFFT_Z2Z, 3),
+            "cufftPlanMany (Born)");
+      s.plan3_ok = true;
+    }
   } catch (...) {
+    if (impl_->plan3_ok) cufftDestroy(impl_->plan3);
     if (impl_->plan_ok) cufftDestroy(impl_->plan);
     delete impl_;
     impl_ = nullptr;
@@ -305,6 +438,7 @@ CudaSolver::CudaSolver(Grid grid, std::vector<cplx> indices, std::vector<std::in
 
 CudaSolver::~CudaSolver() {
   if (impl_) {
+    if (impl_->plan3_ok) cufftDestroy(impl_->plan3);
     if (impl_->plan_ok) cufftDestroy(impl_->plan);
     delete impl_;
   }
@@ -370,7 +504,8 @@ RunResult CudaSolver::run(const std::vector<cplx>& field_in, int iterations,
         s.apply(1, e, p, p + 1, next);
         src_bwd[p] = gather(next, p);
       }
-      s.apply(0, e, p, p + 1, next);
+      s.apply(0, e, p, p + 1, next);  // leaves F{e} in s.spectrum
+      if (s.has_host[p]) s.add_born_increment(p, next);
       std::swap(e, next);
       // backward reflection at interface p was stored for plane p + 1
       if (auto f = src_fwd.find(p + 1); f != src_fwd.end()) add(e, f->second, p);
