@@ -1,7 +1,8 @@
 """Born increment for weak index fluctuations δn on top of the structure (stage B7, decision E10).
 
 Specification: docs/spezifikation.md §10; source chen2020, eqs. (3)–(9) and algorithm 1 (scalar,
-sinc ≈ 1, fields at slab midpoints), vector projector from the dyadic Green's function (chew1995,
+sinc ≈ 1, fields at slab midpoints) with the linearised potential of decision E11 (#46), vector
+projector from the dyadic Green's function (chew1995,
 checked in K17). Used by `bwpm.fpwpm.Propagator2D` (2D, k_x = 0) and
 `bwpm.volume3d.Bidirectional3D` (3D); verified in K18.
 """
@@ -52,7 +53,8 @@ def born_increment(
 ) -> ComplexArray:
     """Vector Born increment of one slab in real space, §10.
 
-    ΔE⊥ = F⁻¹{e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·F{V·E_m}]⊥} with V = k₀²((ñ₀ + δn)² − ñ₀²),
+    ΔE⊥ = F⁻¹{e^(i k_z dz/2)·i dz/(2k_z)·[P(k)·F{V·E_m}]⊥} with V = 2ñ₀k₀²δn (E11, #46; chen2020
+    eq. (1) has k₀²((ñ₀ + δn)² − ñ₀²), equal to first order),
     E_m = F⁻¹{e^(i k_z dz/2)(Ê⊥, Ê_z)} the full field at the slab midpoint in the host,
     Ê_z = −k⊥·Ê⊥/k_z (wende2023 eq. (5)), P = I − kkᵀ/k²; propagating waves only (|k⊥| < k).
     Fields ∝ exp(i(k·r − ωt)).
@@ -78,7 +80,7 @@ def born_increment(
         ez = np.where(kz != 0, -(kx * spectrum[..., 0] + ky * spectrum[..., 1]) / kz, 0.0)
     full = np.stack([spectrum[..., 0], spectrum[..., 1], ez], axis=-1) * half[..., None]
     middle = sfft.ifftn(full, axes=axes, workers=workers)
-    potential = k0**2 * ((host + delta_n) ** 2 - host**2)
+    potential = 2 * host * k0**2 * delta_n
     source = sfft.fftn(potential[..., None] * middle, axes=axes, workers=workers)
     propagating = kp2 < np.real(k * np.conj(k))
     green = np.where(propagating, half * 1j * dz / (2 * np.where(propagating, kz, 1.0)), 0.0)

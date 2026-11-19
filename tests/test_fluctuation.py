@@ -178,6 +178,15 @@ def test_multiple_scattering_matches_rcwa(delta_n: float, pol: Literal["TE", "TM
 
 
 @pytest.mark.parametrize("pol", POLARIZATIONS)
+@pytest.mark.parametrize("delta_n", [0.01, 0.03])
+def test_linearised_potential_halves_the_error(delta_n: float, pol: Literal["TE", "TM"]) -> None:
+    """Decision E11 (#46): with V = 2ñ₀k₀²δn the mean phase is exact to second order at normal
+    incidence, so the error of k₀δn²L/(2ñ₀) in order 0 (§10) disappears and the error against
+    the RCWA stays below δn/2 (with V = k₀²((ñ₀ + δn)² − ñ₀²) of chen2020: up to 0.7·δn)."""
+    assert _orders_against_rcwa(delta_n, pol, fluctuation_model=True) < delta_n / 2
+
+
+@pytest.mark.parametrize("pol", POLARIZATIONS)
 def test_flux_is_conserved_to_first_order_in_step(pol: Literal["TE", "TM"]) -> None:
     """Lossless δn = 0.01 over 2 µm: the flux with E_z (eq. (5)) is conserved up to the growth
     O((k₀δn dz)²) per slab (§10), which falls like dz."""
