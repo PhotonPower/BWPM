@@ -134,7 +134,8 @@ def born_emission(
     safe_kz = np.where(propagating, kz, 1.0)
     signed_kz = direction * kz
     total = np.zeros(sources.shape[1:-1] + (2,), dtype=np.complex128)
-    for zeta, source in zip(GAUSS_POINTS, sources, strict=True):
+    for m, zeta in enumerate(GAUSS_POINTS):
+        source: ComplexArray = sources[m]
         green = np.where(
             propagating,
             0.5 * np.exp(1j * signed_kz * (1 - zeta) * dz) * 1j * dz / (2 * safe_kz),

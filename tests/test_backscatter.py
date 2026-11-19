@@ -49,10 +49,10 @@ def _stack(
 
 def _bwpm(
     grid: Grid2D,
-    delta: np.ndarray,
+    delta: np.ndarray,  # type: ignore[type-arg]
     m: int,
     pol: str,
-    iterations: int,  # type: ignore[type-arg]
+    iterations: int,
 ) -> tuple[complex, complex, list[float]]:
     labels = np.zeros((delta.shape[0], grid.ny), dtype=np.int64)
     fluctuation = np.repeat(delta[:, None], grid.ny, axis=1)
