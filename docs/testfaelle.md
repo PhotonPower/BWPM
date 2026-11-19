@@ -21,7 +21,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K9 | gekippter ebener Silberspiegel | Reflexionsgesetz, Fresnel | Richtung → 2α bei Verfeinerung; Leistung weit unter Fresnel und nicht konvergent (Grenze des Verfahrens) | B2 | ✅ (slow) | `test_mirror.py` |
 | K6 | Faserfacette mit Index-Matching-Kappe, Kette Field Tracing → BWPM → Field Tracing (2D) | Fresnel, Spiegelbild des Luftfokus, analytische Plattenphase | Fokus des Reflexes −82,40 µm (Soll −82,42), Rückreflex an der Facette 4,2 % → 5,6·10⁻⁵, Strehl 0,9972 (Soll 0,9976) | B5 (2D vorgezogen) | ✅ | `test_pilot_imc.py` ([Bericht](pilot-imc-2d.md)) |
 | K6 (3D) | Faserfacette mit Index-Matching-Kappe in 3D, Kette Richards-Wolf-Spektrum → BWPM → Winkelspektrum | Fresnel je Winkel und Polarisation (flussgewichtet), Spiegelbild des Luftfokus, Fresnel Kappe → Kern/Mantel am Facettenfeld | Fokus des Reflexes −82,42 µm, Reflexionsgrad = Referenz, rücklaufender Fluss an der Facette in der Größe der Referenz, Strehl wie 2D | B5a | Hilfsfunktionen ✅, ✅ Messlauf und Diagnose B5a, vom Maintainer abgenommen (2026-11-19) | `test_pilot_imc3d.py`, `experiments/b3_scaling.py` ([Bericht](pilot-imc-3d.md)) |
-| K17 | Streuung an schwachen Lamellengittern (δn = 10⁻⁵) und einer dünnen Zufallsschicht, λ = 0,8 µm, ñ₀ = 1,38, FPWPM | erste Born-Näherung der Pixeltreppe (`bwpm.born`), selbst geprüft gegen Airy und RCWA (Abweichung O(δn)) | Born gegen Airy/RCWA < 10⁻³ und erster Ordnung in δn; FPWPM gegen Born < 10⁻³ paraxial (0,8°), < 1 % bei 29–63° | B6 | ◐ Referenz ✅, paraxial ✅, Ursache analytisch erklärt ✅; große Winkel verfehlt (Grenze des Verfahrens, #29), Test `xfail(strict)` | `test_born.py`, `experiments/born_angles.py` |
+| K17 | Streuung an schwachen Lamellengittern (δn = 10⁻⁵) und einer dünnen Zufallsschicht, λ = 0,8 µm, ñ₀ = 1,38, FPWPM | erste Born-Näherung der Pixeltreppe (`bwpm.born`), selbst geprüft gegen Airy und RCWA (Abweichung O(δn)) | Born gegen Airy/RCWA < 10⁻³ und erster Ordnung in δn; FPWPM gegen Born < 10⁻³ paraxial (0,8°), < 1 % bei 29–63° | B6 | ◐ Referenz ✅, paraxial ✅, Ursache analytisch erklärt ✅; große Winkel verfehlt (Grenze des Verfahrens, #29), Test `xfail(strict)` | `test_born.py`, `test_born_3d.py`, `experiments/born_angles.py` |
 
 ## K6 in 3D (B5a)
 
@@ -231,8 +231,34 @@ Fenster 40 µm, Seed 29), gestreute Leistung je Winkelbereich, FPWPM/Born:
 
    Unter 1 % Abweichung bis θ ≈ 11° (TE) bzw. 6,6° (TM).
 
-Nicht untersucht: 3D, schräger Einfall (die Herleitung sagt dort k_z(k_y)/k_z(q) im Volumen voraus),
-Leistungserhaltung bei l_c = 0,2 µm (#29) und die Born-Referenz in Scattuccino.
+7. **3D** (`test_born_3d.py`): Die vektorielle Referenz trifft für in x oder y homogene Gitter das
+   2D-Ergebnis (< 10⁻¹²) und hat im Rahmen jeder gestreuten Welle die Eigenwerte k_z²/k² und 1.
+   Die FPWPM ist komponentenweise skalar (gestreutes E_y bei x-Polarisation < 10⁻⁸ der Leistung
+   von E_x) mit dem Faktor r(θ) aus Punkt 6. Dünne Zufallsschicht (6,4 × 6,4 × 2 µm, l_c = 0,3 µm,
+   8 Stufen, Seed 29), x-Polarisation, Leistung je Winkelbereich:
+
+   | Schritt (µm) | Größe | 2–10° | 10–20° | 20–30° | 30–40° | 40–50° | 50–60° | 60–75° |
+   | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+   | 0,02 | Born vektoriell / skalar | 0,992 | 0,968 | 0,927 | 0,846 | 0,760 | 0,628 | 0,633 |
+   | 0,02 | S9b-2-Messgröße (E⊥) / Born skalar | 0,992 | 0,965 | 0,900 | 0,800 | 0,675 | 0,509 | 0,269 |
+   | 0,02 | Vorhersage K17: r² | 0,992 | 0,965 | 0,899 | 0,799 | 0,673 | 0,508 | 0,268 |
+   | 0,02 | FPWPM volles Feld / Born vektoriell | 1,008 | 1,032 | 1,057 | 1,164 | 1,299 | 1,680 | 1,412 |
+   | 0,02 | Vorhersage K17 | 1,008 | 1,031 | 1,056 | 1,162 | 1,296 | 1,675 | 1,407 |
+   | 0,04 | S9b-2-Messgröße (E⊥) / Born skalar | 0,994 | 0,968 | 0,912 | 0,809 | 0,674 | 0,495 | 0,266 |
+   | 0,04 | Vorhersage K17: r² | 0,993 | 0,967 | 0,910 | 0,805 | 0,669 | 0,490 | 0,262 |
+   | 0,04 | FPWPM volles Feld / Born vektoriell | 1,006 | 1,035 | 1,077 | 1,176 | 1,363 | 1,599 | 1,871 |
+   | 0,04 | Vorhersage K17 | 1,006 | 1,034 | 1,075 | 1,170 | 1,352 | 1,580 | 1,844 |
+
+   Die Verhältnisse je Bereich hängen von der Realisierung ab (Gewichtung über den Azimut), die
+   Vorhersage gilt je Zelle. Folgerung für #29: Scattuccino vergleicht die Querkomponenten mit
+   skalarem Born; das ergibt r², also „zu wenig bei großen Winkeln“. Physikalisch richtig
+   verglichen streut die FPWPM bei großen Winkeln zu viel (p-Anteil). Hinweise und die Tabelle für
+   die Medien aus S9b-2: [hinweise-scattuccino-s9b2.md](hinweise-scattuccino-s9b2.md),
+   `experiments/vector_born_wm.py`.
+
+Nicht untersucht: schräger Einfall (die Herleitung sagt dort k_z(k_y)/k_z(q) im Volumen voraus),
+Mehrfachstreuung, Extinktion des kohärenten Feldes (μs) und Leistungserhaltung bei l_c = 0,2 µm
+(#29).
 
 ## K7: Randzone der Maske (B1)
 

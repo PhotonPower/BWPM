@@ -66,3 +66,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - B6: Ursache der Abweichung analytisch in erster Ordnung (Schrägfaktor der einfallenden statt
   der gestreuten Welle, Fresnel an Ein- und Austritt): TE cos θ (3 − cos θ)/2, TM
   (3 − cos θ)/(2 cos θ); Test gegen die FPWPM auf 10⁻³.
+- B6: vektorielle Born-Referenz in 3D (`bwpm.born.born_forward_3d`, Querblock der dyadischen
+  Green-Funktion), geprüft gegen 2D; K17 in 3D: FPWPM komponentenweise skalar mit dem Faktor r(θ),
+  an einer dünnen Zufallsschicht bestätigt. Hinweise für Scattuccino S9b-2 (skalare Referenz,
+  fehlendes E_z) in `docs/hinweise-scattuccino-s9b2.md`, Skript `experiments/vector_born_wm.py`.
