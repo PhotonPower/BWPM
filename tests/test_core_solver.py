@@ -219,3 +219,39 @@ def test_zero_fluctuation_is_bit_identical_in_core() -> None:
     b = fast.run_2d(zero, d["inputs"]["field"], iterations=2)
     assert np.array_equal(a.transmitted, b.transmitted)
     assert np.array_equal(a.reflected, b.reflected)
+
+
+@pytest.mark.parametrize("seed", [3, 4])
+def test_back_scattering_with_iterations_equals_python(seed: int) -> None:
+    """B8b (K19): back scattering R1–R3 at δn over three iterations, 3D core against Python."""
+    rng = np.random.default_rng(seed)
+    nx, ny, nz = (12, 10, 14) if seed % 2 else (8, 16, 11)
+    grid = Grid3D(nx, ny, 0.05e-3, 0.05e-3, 0.04e-3, 0.8)
+    labels = np.zeros((nz, ny, nx), dtype=np.int64)
+    labels[nz - 3 :] = 1
+    indices = [1.38 + 0j, 1.5 + 0.002j]
+    fluctuation = np.zeros((nz, ny, nx), dtype=np.complex128)
+    fluctuation[1 : nz - 4] = 0.02 * rng.normal(size=(nz - 5, ny, nx)) + 1e-3j
+    field = rng.normal(size=(ny, nx, 2)) + 1j * rng.normal(size=(ny, nx, 2))
+    mask = absorbing_mask_2d(grid, 2 * grid.dx) if seed == 4 else None
+    solver = Bidirectional3D(grid, indices, labels, 1.38 + 0j, mask, fluctuation=fluctuation)
+    ref = solver.run(field, 3, keep=(0, 5, nz))
+    core = fast.run_3d(solver, field, 3, (0, 5, nz), backend="cpu")
+    scale = 1e-12 * float(np.max(np.abs(field)))
+    assert np.max(np.abs(core.transmitted - ref.transmitted)) < scale
+    assert np.max(np.abs(core.reflected - ref.reflected)) < scale
+    for q in (0, 5, nz):
+        for j in (0, 1):
+            assert np.max(np.abs(core.planes[q][j] - ref.planes[q][j])) < scale
+
+
+def test_back_scattering_2d_bwpm_equals_python() -> None:
+    """B8b: 2D BWPM with δn through `fast.run_2d` against `Bidirectional2D` (3 iterations)."""
+    d = _load("fpwpm2d_fluctuation")
+    prop = _propagator_2d(d)
+    ref = Bidirectional2D(prop).run(d["inputs"]["field"], iterations=3)
+    core = fast.run_2d(prop, d["inputs"]["field"], iterations=3, backend="cpu")
+    scale = 1e-12 * float(np.max(np.abs(d["inputs"]["field"])))
+    assert np.max(np.abs(core.transmitted - ref.transmitted)) < scale
+    assert np.max(np.abs(core.reflected - ref.reflected)) < scale
+    assert np.allclose(core.energy_residual, ref.energy_residual, rtol=1e-10, atol=1e-13)
