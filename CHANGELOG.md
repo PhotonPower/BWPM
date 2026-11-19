@@ -104,3 +104,5 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - Windows mit CUDA: Der Build hinterlegt den CUDA-Ordner in `bwpm/_cuda_dll.py`; `bwpm.fast`
   fügt ihn vor dem Import von `bwpm._core` zum DLL-Suchpfad hinzu (ersatzweise `CUDA_PATH`). Bisher
   fand Python `cufft64_12.dll` nicht, weil es unter Windows kein RPATH gibt.
+- Entscheidung E12: Rückstreuung an δn als Stufe B8; Entwurf `docs/b8-entwurf.md` (Quelle:
+  Zusatzmaterial zu chen2020, im Volltext geprüft).

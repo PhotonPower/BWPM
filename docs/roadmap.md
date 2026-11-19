@@ -30,6 +30,7 @@ Leitlinien:
 | **B5 Fusionspilot** | Faserfacette mit Index-Matching-Kappe zwischen Raytatouille-Objektiv und Lochblende (Fusionsplan K4) | K6 |
 | **B6 Große Winkel (#29)** | Genauigkeit des Vorwärtsschritts bei Streuung in große Winkel an schwachen, feinen Brechzahländerungen; Sollwert erste Born-Näherung (E8) | K17 ✅ (Ursache erklärt, Grenze E9) |
 | **B7 Schwache Fluktuationen (#37, E10)** | Zerlegung ñ = ñ_Struktur + δn: Struktur weiter mit WPM, δn je Scheibe mit dem vektoriellen Born-Inkrement im Wirtsmedium; B7a Python-Referenz, B7b Kern (C++/CUDA) | B7a ✅ (abgenommen 2026-11-19): K18 (K17-Sollwerte ohne Anpassung getroffen, Konvergenz in dz; Mehrfachstreuung gegen RCWA; Energie mit E_z; δn = 0 bitgleich, K1–K16 und `reference/` unberührt). B7b: neue Sollwertdateien aus B7a; CPU-Kern ✅ (K18 Punkt 7), CUDA ✅ auf RTX 2080 (K18 Punkt 8); B7b ✅ abgenommen 2026-11-19 |
+| **B8 Rückstreuung an δn (E12)** | Rückstreuung des Vorwärtsfeldes, Vorwärtsstreuung des Rückwärtsfeldes und dessen Rückstreuung an δn in der BWPM; Entwurf [docs/b8-entwurf.md](b8-entwurf.md); B8a Python-Referenz, B8b Kern | K19 (Airy, Bragg-Gitter, RCWA in Reflexion, Energie, Konvergenz in dz und Iterationen, δn = 0 bitgleich) |
 
 Reihenfolge streng: B0 → B1 → B2 → B3 → B4 → B5. Ausnahme (E6): Der Fusionspilot wurde in 2D
 vor B3 gerechnet ([docs/pilot-imc-2d.md](pilot-imc-2d.md)); B5 bleibt der Pilot in 3D mit dem
@@ -56,6 +57,7 @@ Abnahme. B7 ist damit abgeschlossen.
 | E9 | Grenze bei Streuung in große Winkel (#29, K17) | Gültigkeitsgrenze festhalten, das Verfahren bleibt wie wende2023: Streuung an feinen Brechzahländerungen quantitativ (Amplitude < 1 %) nur bis θ ≈ 11° (s) bzw. 6,6° (p); darüber s-Anteil um r = cos θ (3 − cos θ)/2 zu klein, p-Anteil um r/cos²θ zu groß. Erweiterung für schwache Fluktuationen (Variante B3: Born-konsistentes Inkrement für δn) als Vorschlag in #37, nicht beschlossen (2026-11-19) |
 | E10 | Erweiterung für schwache Fluktuationen (#37) | Variante B3 angenommen als Stufe B7: δn je Scheibe mit dem Born-Inkrement F⁻¹{e^(i k_z dz)·i dz/(2k_z)·P⊥·F{V_δn·E}} im homogenen Wirtsmedium, Struktur unverändert mit WPM; mit δn = 0 bitgleich zu heute. Erste Ausbaustufe: Wirtsmedium je Bereich homogen, nur Vorwärtsrichtung, streifende Wellen regularisiert oder auf propagierende beschränkt (in B7a festzulegen); Rückstreuung und δn in Linsen später. E9 gilt weiter für die reine WPM (2026-11-19) |
 | E11 | Potenzial im Born-Inkrement (#46) | linearisiert, V = 2ñ₀k₀²δn statt k₀²((ñ₀ + δn)² − ñ₀²) nach chen2020 Gl. (1): mittlere Phase bei senkrechter Ausbreitung bis zur zweiten Ordnung exakt, Fehler gegen RCWA etwa ein Drittel; in erster Ordnung gleich (2026-11-19) |
+| E12 | Rückstreuung an δn (Scattuccino, OCT) | als Stufe B8 aufgenommen; Entwurf mit offenen Punkten F1–F5 in `docs/b8-entwurf.md` (2026-11-19) |
 
 ## Risiken
 
