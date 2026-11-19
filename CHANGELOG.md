@@ -70,3 +70,5 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   Green-Funktion), geprüft gegen 2D; K17 in 3D: FPWPM komponentenweise skalar mit dem Faktor r(θ),
   an einer dünnen Zufallsschicht bestätigt. Hinweise für Scattuccino S9b-2 (skalare Referenz,
   fehlendes E_z) in `docs/hinweise-scattuccino-s9b2.md`, Skript `experiments/vector_born_wm.py`.
+- Entscheidung E9: Gültigkeitsgrenze bei Streuung in große Winkel (quantitativ bis ≈ 11° für s,
+  6,6° für p); Vorschlag für schwache Fluktuationen in #37. B6 abgeschlossen.
