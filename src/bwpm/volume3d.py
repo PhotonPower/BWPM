@@ -13,9 +13,10 @@ intermediate planes are kept only for requested planes.
 Fields have shape (ny, nx, 2) with components (E_x, E_y); grids are centred,
 x_m = (m − nx//2)·dx, y_n = (n − ny//2)·dy (mm).
 
-Optionally, weak index fluctuations δn are added in the forward transmission steps with the vector
-Born increment (`bwpm.fluctuation`, docs/spezifikation.md §10, decision E10); the backward sweep
-does not scatter at δn (no back scattering in the first stage of B7).
+Optionally, weak index fluctuations δn scatter with the vector Born approximation
+(`bwpm.fluctuation`, docs/spezifikation.md §10, §11; stages B7, B8): forward increment and back
+scattering R1 in the forward pass, increment R2 and forward scattering R3 of the backward field in
+the backward pass, as full-plane sources (F3).
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ import numpy as np
 import scipy.fft as sfft
 
 from bwpm._types import ComplexArray, FloatArray, IntArray
-from bwpm.fluctuation import born_increment, slab_hosts
+from bwpm.fluctuation import born_emission, born_sources, slab_hosts
 from bwpm.interface import longitudinal_wavenumber, reflection_matrix, transmission_matrix
 
 
@@ -187,23 +188,36 @@ class Bidirectional3D:
             out = out * self.mask[..., None]
         return np.asarray(out)
 
-    def _transmit_forward(
-        self, field_in: ComplexArray, labels_r: IntArray, labels_s: IntArray, slab: int
-    ) -> ComplexArray:
-        """Forward transmission through slab `slab`, plus the Born increment of δn (§10)."""
-        out = self._apply("fwd_t", field_in, labels_r, labels_s)
+    def _born(
+        self, field: ComplexArray, slab: int, direction: int, both: bool = True
+    ) -> tuple[ComplexArray, ComplexArray | None] | None:
+        """Born fields of slab `slab` for the incident field of `direction` (§11): radiated
+        forward and (if `both`) backward, at the right slab edge; None without δn in the slab."""
         host = self._hosts[slab]
         if host is None or self.fluctuation is None:
-            return out
+            return None
         g = self.grid
-        spectrum = sfft.fft2(field_in, axes=(0, 1), workers=self.workers)
+        spectrum = sfft.fft2(field, axes=(0, 1), workers=self.workers)
         delta = np.asarray(np.asarray(self.fluctuation)[slab], dtype=np.complex128)
-        increment = born_increment(
-            spectrum, delta, host, g.k0, g.dz, self._kx, self._ky, self.workers
-        )
+        args = (host, g.k0, g.dz, self._kx, self._ky, self.workers)
+        sources = born_sources(spectrum, direction, delta, *args)
+        forward = born_emission(sources, +1, *args)
+        back = born_emission(sources, -1, *args) if both else None
+        return forward, back
+
+    def _transmit_forward(
+        self, field_in: ComplexArray, labels_r: IntArray, labels_s: IntArray, slab: int, back: bool
+    ) -> tuple[ComplexArray, ComplexArray | None]:
+        """Forward transmission through slab `slab` plus the Born increment of δn (§10), and the
+        back scattering R1 at the right slab edge if `back` (§11)."""
+        out = self._apply("fwd_t", field_in, labels_r, labels_s)
+        born = self._born(field_in, slab, +1, back)
+        if born is None:
+            return out, None
+        increment, scattered = born
         if self.mask is not None:
             increment = increment * self.mask[..., None]
-        return np.asarray(out + increment)
+        return np.asarray(out + increment), scattered
 
     def _interfaces(self, p_left: int, p_right: int) -> np.ndarray:  # type: ignore[type-arg]
         """Boolean (ny, nx): pixels where the index changes between the two planes' media."""
@@ -242,8 +256,10 @@ class Bidirectional3D:
         transmitted: ComplexArray = e_in
         reflected: ComplexArray = np.zeros_like(e_in)
         stored = 0
+        born_fwd: dict[int, ComplexArray] = {}  # R3 of the last backward pass, full planes (F3)
         for it in range(max(iterations, 1)):
             src_bwd: dict[int, tuple[np.ndarray, ComplexArray]] = {}  # type: ignore[type-arg]
+            born_bwd: dict[int, ComplexArray] = {}  # R1 of this forward pass
             e: ComplexArray = e_in + self._restore(src_fwd.get(0))
             if 0 in keep:
                 forward_keep[0] = e.copy()
@@ -251,25 +267,40 @@ class Bidirectional3D:
                 lr, ls = self._plane_labels(p), self._plane_labels(p + 1)
                 if iterations > 0 and interface[p].any():
                     src_bwd[p] = self._store(self._apply("fwd_r", e, lr, ls), interface[p])
-                e = self._transmit_forward(e, lr, ls, p)
+                e, back = self._transmit_forward(e, lr, ls, p, iterations > 0)
+                if back is not None:
+                    born_bwd[p + 1] = back
                 if p + 1 in src_fwd:
                     e = e + self._restore(src_fwd[p + 1])
+                if p + 1 in born_fwd:
+                    e = e + born_fwd[p + 1]
                 if p + 1 in keep:
                     forward_keep[p + 1] = e.copy()
             transmitted = e
             if iterations == 0:
                 break
             src_fwd = {}
+            born_fwd = {}
             e = self._restore(src_bwd.get(nz))
+            if nz in born_bwd:
+                e = e + born_bwd[nz]
             if nz in keep:
                 backward_keep[nz] = e.copy()
             for p in range(nz, 0, -1):
                 lr, ls = self._plane_labels(p), self._plane_labels(p - 1)
+                born = self._born(e, p - 1, -1)
+                if born is not None:
+                    scattered, increment = born
+                    assert increment is not None
+                    e = e + increment  # R2, referred to plane p before the step
+                    born_fwd[p] = scattered  # R3
                 if interface[p - 1].any():
                     src_fwd[p] = self._store(self._apply("bwd_r", e, lr, ls), interface[p - 1])
                 e = self._apply("bwd_t", e, lr, ls)
                 if p - 1 in src_bwd:
                     e = e + self._restore(src_bwd[p - 1])
+                if p - 1 in born_bwd:
+                    e = e + born_bwd[p - 1]
                 if p - 1 in keep:
                     backward_keep[p - 1] = e.copy()
             reflected = e

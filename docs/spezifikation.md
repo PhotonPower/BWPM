@@ -294,3 +294,45 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   Inkrement wird vor der Maske addiert, der Rückwärtslauf streut nicht an δn. Gemessen in K18.
 - **δn = 0:** Ohne δn wird das Inkrement nicht berechnet; das Ergebnis ist bitgleich zu heute
   (K1–K16, `reference/`).
+
+## 11. Rückstreuung an δn in der BWPM (B8, E12, #53)
+
+Entwurf und Entscheidungen F1–F5: `docs/b8-entwurf.md`. Erweitert §10 auf beide Richtungen.
+
+- **Scheibenintegral (F1, #53):** Gauß-Legendre mit zwei Punkten, ζ_m = dz·(1 ∓ 1/√3)/2 ab dem
+  linken Scheibenrand, Gewichte 1/2. Ersetzt die Mittelpunktregel aus §10 auch vorwärts
+  (chen2020 nutzt vorwärts sinc ≈ 1 und rückwärts eine Taylor-Reihe der sinc-Funktion,
+  Zusatzmaterial Gl. (S5)–(S7)).
+- **Quellen:** Für das auf Scheibe p einfallende Feld der Richtung d (+1 vorwärts, am linken Rand
+  = Ebene p; −1 rückwärts, am rechten Rand = Ebene p + 1) im Wirt ñ₀ mit Ê_z = −d·k⊥·Ê⊥/k_z
+  (wende2023 Gl. (5)), nur propagierende, nicht streifende Wellen (§10):
+
+  E_m = F⁻¹{e^(i k_z s_m)·(Ê⊥, Ê_z)}, s_m = ζ_m für d = +1, dz − ζ_m für d = −1;
+  Ŝ_m = F{V·E_m}, V = 2ñ₀k₀²δn (E11).
+- **Abstrahlung in Richtung d′,** bezogen auf den **rechten** Scheibenrand (Ebene p + 1),
+  mit k_d′ = (k_x, k_y, d′·k_z):
+
+  ΔE⊥ = F⁻¹{ Σ_m ½ · e^(i d′ k_z (dz − ζ_m)) · i dz/(2k_z) · [P(k_d′)·Ŝ_m]⊥ },
+  [P(k_d′)·Ŝ]⊥ = Ŝ⊥ − k⊥(k⊥·Ŝ⊥ + d′ k_z Ŝ_z)/k².
+
+  Für d′ = −1 ist das das am linken Rand austretende Feld, um dz zurück auf Ebene p + 1 bezogen
+  (Faktor e^(−i k_z dz), auf propagierenden Wellen beschränkt). Der folgende Rückwärtsschritt
+  p + 1 → p (T·e^(i k_z dz), Tabelle 1, i = 3) bringt es dann an den linken Rand und durch die
+  Grenzfläche p; so gilt auch an einer Grenzfläche zwischen Wirt und Nachbarscheibe die richtige
+  Transmission.
+- **Einbau in die BWPM (F2, F4):**
+
+  | Lauf | einfallend | Beitrag | wohin |
+  | --- | --- | --- | --- |
+  | vorwärts, Scheibe p | Feld an Ebene p, d = +1 | vorwärts (§10) | zum Vorwärtsfeld an Ebene p + 1, vor der Maske |
+  | vorwärts, Scheibe p | dasselbe | R1, d′ = −1 | Rückwärtsquelle an Ebene p + 1 |
+  | rückwärts, Scheibe p | Feld an Ebene p + 1, d = −1 | R2, d′ = −1 | zum Rückwärtsfeld an Ebene p + 1, vor dem Schritt nach p |
+  | rückwärts, Scheibe p | dasselbe | R3, d′ = +1 | Vorwärtsquelle an Ebene p + 1 (nächste Iteration) |
+
+  Die Quellen sind volle Ebenen (F3) und werden wie die Reflexe der Grenzflächen (§5) addiert.
+  Vorwärts bleibt wie in B7 die Näherung, dass das Feld an Ebene p ohne Transmission durch die
+  Grenzfläche p in den Wirt läuft (Fehler der Ordnung r·δn nur in der ersten Scheibe nach einem
+  Materialwechsel).
+- **Umsetzung:** `bwpm.fluctuation` (`born_sources`, `born_emission`), eingebunden in
+  `Propagator2D`, `Bidirectional2D` (bisher ohne δn, Lücke aus B7) und `Bidirectional3D`; im Kern
+  B8b. Prüfung K19.

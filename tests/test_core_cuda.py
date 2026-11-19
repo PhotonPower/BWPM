@@ -156,3 +156,24 @@ def test_fluctuation_equals_cpu_core(seed: int) -> None:
     scale = 1e-10 * float(np.max(np.abs(field)))
     assert np.max(np.abs(gpu.transmitted - cpu.transmitted)) < scale
     assert np.max(np.abs(gpu.reflected - cpu.reflected)) < scale
+
+
+def test_back_scattering_with_iterations_equals_cpu_core() -> None:
+    """B8b (K19): back scattering R1–R3 over three iterations, GPU against CPU core."""
+    rng = np.random.default_rng(5)
+    nx, ny, nz = 12, 10, 14
+    grid = Grid3D(nx, ny, 0.05e-3, 0.05e-3, 0.04e-3, 0.8)
+    labels = np.zeros((nz, ny, nx), dtype=np.int64)
+    labels[nz - 3 :] = 1
+    fluctuation = np.zeros((nz, ny, nx), dtype=np.complex128)
+    fluctuation[1 : nz - 4] = 0.02 * rng.normal(size=(nz - 5, ny, nx)) + 1e-3j
+    field = rng.normal(size=(ny, nx, 2)) + 1j * rng.normal(size=(ny, nx, 2))
+    mask = absorbing_mask_2d(grid, 2 * grid.dx)
+    solver = Bidirectional3D(
+        grid, [1.38 + 0j, 1.5 + 0.002j], labels, 1.38 + 0j, mask, fluctuation=fluctuation
+    )
+    cpu = fast.run_3d(solver, field, 3, (0, 5, nz), backend="cpu")
+    gpu = fast.run_3d(solver, field, 3, (0, 5, nz), backend="cuda")
+    scale = 1e-10 * float(np.max(np.abs(field)))
+    assert np.max(np.abs(gpu.transmitted - cpu.transmitted)) < scale
+    assert np.max(np.abs(gpu.reflected - cpu.reflected)) < scale
