@@ -7,7 +7,7 @@ Auswertung: `tests/test_pilot_imc3d.py`; Messungen: Abschnitte „Messlauf B5a�
 [testfaelle.md](testfaelle.md) (Testfall K6 in 3D), Aufträge:
 [agent-server-b5a.md](agent-server-b5a.md), [agent-server-b5a-diagnose.md](agent-server-b5a-diagnose.md).
 
-**Stand:** gemessen, Abnahmekriterien noch nicht festgelegt (Maintainer). Die Auswertung ist durch
+**Stand:** gemessen und vom Maintainer abgenommen (2026-11-19). Die Auswertung ist durch
 Tests gegen analytische Werte abgesichert, die Messwerte selbst entstehen nur auf dem Server und
 sind nicht Teil der CI.
 
