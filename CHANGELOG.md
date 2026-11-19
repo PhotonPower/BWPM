@@ -106,3 +106,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   fand Python `cufft64_12.dll` nicht, weil es unter Windows kein RPATH gibt.
 - Entscheidung E12: Rückstreuung an δn als Stufe B8; Entwurf `docs/b8-entwurf.md` (Quelle:
   Zusatzmaterial zu chen2020, im Volltext geprüft).
+- B8a/B8b: Rückstreuung an δn in der BWPM (R1–R3, Spezifikation §11) in Python
+  (`Bidirectional2D`, `Bidirectional3D`), CPU- und CUDA-Kern; Scheibenintegral mit zwei
+  Gauß-Punkten statt Mittelpunkt (F1, #53), auch vorwärts. K19: Schicht und Bragg-Gitter gegen die
+  exakte Lösung auf 5·10⁻⁴ bzw. 1,3·10⁻³. Behoben: `Bidirectional2D` ignorierte δn (Lücke aus B7).
+  Sollwertdateien für δn neu erzeugt.
