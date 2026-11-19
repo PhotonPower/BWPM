@@ -8,7 +8,8 @@ For the forward FPWPM, K17 (docs/spezifikation.md §9) predicts the transverse f
 r = cos θ (3 − cos θ)/2, so the measure of S9b-2 (|E⊥|² against scalar Born) is weighted by r².
 
 Prints, per medium: 1 − g over the forward hemisphere (scalar Born, vector Born, K17 prediction
-for the S9b-2 measure), μs(vector)/μs(scalar) over the full sphere and the extinction the FPWPM
+for the S9b-2 measure and for the full field with E_z, i.e. vector Born times r²/cos²θ as measured
+by Scattuccino S9b-7), μs(vector)/μs(scalar) over the full sphere and the extinction the FPWPM
 gives: it conserves Σ|E⊥|², not the flux, so the coherent loss is the scattered transverse norm,
 ∫ σ r²/cos θ dΩ over the forward hemisphere (K17,
 `test_fpwpm_3d_extinction_follows_the_transverse_norm`).
@@ -37,11 +38,12 @@ def main() -> None:
     q = 2 * k * np.sqrt((1 - mu) / 2)
     dipole = (1 + mu**2) / 2
     r2 = np.where(mu > 0, (mu * (3 - mu) / 2) ** 2, 0.0)
+    full = np.where(mu > 0, dipole * ((3 - mu) / 2) ** 2, 0.0)  # dipole · r²/cos²θ
     print(
         "| l_c (µm) | D | 1 − g Born skalar | 1 − g Born vektoriell | 1 − g K17 (S9b-2-Messgröße) "
-        "| μs vektoriell/skalar | μs FPWPM/skalar |"
+        "| 1 − g K17 (volles Feld) | μs vektoriell/skalar | μs FPWPM/skalar |"
     )
-    print("| --- | --- | --- | --- | --- | --- | --- |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- |")
     for l_c, d in MEDIA:
         psd = (1 + (q * l_c) ** 2) ** (-d / 2)
         total = np.trapezoid(psd, mu)
@@ -50,7 +52,8 @@ def main() -> None:
         extinction = np.trapezoid(norm, mu) / total
         print(
             f"| {l_c} | {d} | {one_minus_g(mu, psd):.4f} | {one_minus_g(mu, psd * dipole):.4f} "
-            f"| {one_minus_g(mu, psd * r2):.4f} | {ratio:.3f} | {extinction:.3f} |"
+            f"| {one_minus_g(mu, psd * r2):.4f} | {one_minus_g(mu, psd * full):.4f} "
+            f"| {ratio:.3f} | {extinction:.3f} |"
         )
 
 
