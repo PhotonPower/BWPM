@@ -281,6 +281,8 @@ wiedergeben (Abhilfe zu E9), ohne den WPM-Schritt für die Struktur zu ändern. 
   wäre dort 10¹²-mal größer als E⊥, und das Inkrement schaukelte ein zufälliges Feld in 9
   Scheiben auf 10²⁵ auf. Offen: Für propagierende Wellen nahe dem Grenzwinkel bleiben E_z und
   1/k_z groß; stabil ist der Schritt, solange k_z ≫ k₀²ñ₀|δn|dz.
+  Gemessen (E13, #29): Bei σ_n = 0,057, l_c = 0,5 µm, dz = 0,1 µm wächst die Norm nach 6 µm auf
+  das 2,3-Fache (je Scheibe Faktor 1 + Γ², Γ ≈ k₀ñ₀δn·dz/k_z); Abhilfe in Stufe B9.
 - **Ordnung:** Gegenüber der ersten Born-Näherung der ganzen Schicht (K17-Sollwert) bleiben der
   Fehler der Mittelpunktregel (sinc in chen2020 Gl. (9)) und die Abtastung des Potenzials (ohne
   den Faktor sinc(k_y dy/2) der Pixelzelle), beide zweiter Ordnung in dz bzw. dy. Je Scheibe

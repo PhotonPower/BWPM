@@ -114,3 +114,5 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
 - K19 Punkt 6: Lamellengitter in Reflexion gegen RCWA (Ordnungen 0 und ±1, s und p) auf
   0,3–0,5·δn; `tests/rcwa_reference.py` liefert dazu die Reflexion (`lamellar_reflection`).
 - B8 abgenommen (2026-11-19).
+- Entscheidung E13: Instabilität des expliziten Born-Schritts bei σ_n ≈ 0,06 (Befund aus
+  Scattuccino, #29) als Grenze festgehalten; stabiler Born-Schritt als Stufe B9 aufgenommen.
