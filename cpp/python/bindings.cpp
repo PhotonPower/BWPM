@@ -168,7 +168,7 @@ PYBIND11_MODULE(_core, m) {
            }),
            py::arg("ny"), py::arg("nx"), py::arg("dy"), py::arg("dx"), py::arg("dz"), py::arg("k0"),
            py::arg("indices"), py::arg("labels"), py::arg("index_before"), py::arg("mask"),
-           py::arg("device") = 0)
+           py::arg("device") = 0, py::arg("fluctuation") = py::none())
       .def("run", &run_solver<bwpm::CudaSolver>, py::arg("field"), py::arg("iterations"),
            py::arg("keep") = std::vector<std::size_t>{});
 #else
