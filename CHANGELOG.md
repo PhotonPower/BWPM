@@ -101,3 +101,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   (K18 Punkt 8, mit Laufzeiten).
 - Build: Unter Windows mit CUDA 13 übergibt CMake `/Zc:preprocessor` an MSVC (CCCL verlangt den
   standardkonformen Präprozessor).
+- Windows mit CUDA: Der Build hinterlegt den CUDA-Ordner in `bwpm/_cuda_dll.py`; `bwpm.fast`
+  fügt ihn vor dem Import von `bwpm._core` zum DLL-Suchpfad hinzu (ersatzweise `CUDA_PATH`). Bisher
+  fand Python `cufft64_12.dll` nicht, weil es unter Windows kein RPATH gibt.
