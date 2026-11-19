@@ -23,7 +23,7 @@ Status: ✅ umgesetzt und grün, ◐ teilweise, ○ offen.
 | K6 (3D) | Faserfacette mit Index-Matching-Kappe in 3D, Kette Richards-Wolf-Spektrum → BWPM → Winkelspektrum | Fresnel je Winkel und Polarisation (flussgewichtet), Spiegelbild des Luftfokus, Fresnel Kappe → Kern/Mantel am Facettenfeld | Fokus des Reflexes −82,42 µm, Reflexionsgrad = Referenz, rücklaufender Fluss an der Facette in der Größe der Referenz, Strehl wie 2D | B5a | Hilfsfunktionen ✅, ✅ Messlauf und Diagnose B5a, vom Maintainer abgenommen (2026-11-19) | `test_pilot_imc3d.py`, `experiments/b3_scaling.py` ([Bericht](pilot-imc-3d.md)) |
 | K17 | Streuung an schwachen Lamellengittern (δn = 10⁻⁵) und einer dünnen Zufallsschicht, λ = 0,8 µm, ñ₀ = 1,38, FPWPM | erste Born-Näherung der Pixeltreppe (`bwpm.born`), selbst geprüft gegen Airy und RCWA (Abweichung O(δn)) | Born gegen Airy/RCWA < 10⁻³ und erster Ordnung in δn; FPWPM gegen Born < 10⁻³ paraxial (0,8°), < 1 % bei 29–63° | B6 | ✅ Referenz, paraxial, Ursache analytisch erklärt (2D und 3D); große Winkel verfehlt, als Gültigkeitsgrenze E9 festgehalten, Test `xfail(strict)` | `test_born.py`, `test_born_3d.py`, `experiments/born_angles.py` |
 | K18 | Schwache Fluktuationen δn mit Born-Inkrement (B7, E10): Lamellengitter und Zufallsschicht wie K17, Mehrfachstreuung bei δn = 0,01–0,03, δn = 0 | erste Born-Näherung (`bwpm.born`, K17), RCWA (`tests/rcwa_reference.py`), Energie mit E_z, bestehende Sollwerte | K17-Toleranzen ohne Anpassung, Konvergenz in dz; δn = 0 bitgleich | B7a | ✅ abgenommen (2026-11-19): 2D (Born, RCWA, Fluss, bitgleich) und 3D (vektorielles Born, = 2D, bitgleich); Potenzial nach E11 | `test_fluctuation.py`, `test_fluctuation_3d.py` |
-| K19 | Rückstreuung an δn in der BWPM (B8, E12): homogene Schicht δn = 10⁻³ (0–25°, s und p), Bragg-Gitter in z (R = 0,15), δn = 0, 3D = 2D, Kern | exakte Lösung des Schichtstapels (Transfer-Matrix, unabhängig im Test), geschlossenes Born-Integral einer Scheibe, Python-Referenz für den Kern | Schicht: r relativ 2·10⁻³, t 10⁻⁴; Bragg 1 %; Energie 10⁻³; Scheibenintegral 2·10⁻⁴; Kern 10⁻¹² (CPU), 10⁻¹⁰ (CUDA) | B8a, B8b | ✅ (Abnahme offen) | `test_backscatter.py`, `test_core_solver.py`, `test_core_cuda.py` |
+| K19 | Rückstreuung an δn in der BWPM (B8, E12): homogene Schicht δn = 10⁻³ (0–25°, s und p), Bragg-Gitter in z (R = 0,15), Lamellengitter in Reflexion (δn = 0,01/0,03), δn = 0, 3D = 2D, Kern | exakte Lösung des Schichtstapels (Transfer-Matrix, unabhängig im Test), RCWA in Reflexion (gegen Airy und Energie geprüft), geschlossenes Born-Integral einer Scheibe, Python-Referenz für den Kern | Schicht: r relativ 2·10⁻³, t 10⁻⁴; Bragg 1 %; Gitter in Reflexion gegen RCWA δn; Energie 10⁻³; Scheibenintegral 2·10⁻⁴; Kern 10⁻¹² (CPU), 10⁻¹⁰ (CUDA) | B8a, B8b | ✅ (Abnahme offen) | `test_backscatter.py`, `test_core_solver.py`, `test_core_cuda.py` |
 
 ## K6 in 3D (B5a)
 
@@ -388,6 +388,22 @@ Felder, im Test selbst geschrieben wie in K4).
    ohne Maske) auf 10⁻¹² des Eingangs; CUDA gegen CPU auf 10⁻¹⁰ (RTX 2080, CUDA 13.5). Die
    Sollwertdateien `fpwpm2d_fluctuation` und `bwpm3d_fluctuation` sind mit den Gauß-Punkten und
    der Rückstreuung neu erzeugt (F1).
+6. **Lamellengitter in Reflexion gegen RCWA** (`tests/rcwa_reference.py` um die Reflexion
+   erweitert; TM: E_y der reflektierten Welle = −k_z/k·H_x relativ zum einfallenden E_y). Die
+   Referenz selbst: homogene Schicht gegen Airy auf 10⁻¹⁴, starkes verlustfreies Gitter (1,38/1,6)
+   erhält den Fluss über alle Ordnungen auf 10⁻¹². δn-Gitter wie K18 (Periode 0,8 µm, 2,1 µm dick,
+   dy = dz = 0,02 µm, 10 Iterationen), relativer Fehler der reflektierten Ordnungen:
+
+   | δn | Pol. | Ordnung 0: \|r\|, Fehler | Ordnungen ±1 (46° rückwärts): \|r\|, Fehler |
+   | --- | --- | --- | --- |
+   | 0,01 | s | 2,8·10⁻³, 3,8·10⁻³ | 1,8·10⁻³, 3,2·10⁻³ |
+   | 0,01 | p | 2,7·10⁻³, 2,8·10⁻³ | 8,6·10⁻⁴, 2,9·10⁻³ |
+   | 0,03 | s | 9,4·10⁻³, 1,2·10⁻² | 7,6·10⁻³, 1,4·10⁻² |
+   | 0,03 | p | 9,3·10⁻³, 8,5·10⁻³ | 3,5·10⁻³, 1,1·10⁻² |
+
+   Der Fehler ist etwa 0,3–0,5·δn, unabhängig von dz (bei 0,01 µm gleich): zweite Ordnung in δn
+   (Größe δn/ñ₀). Toleranz δn wie in K18. Die schwächere p-Reflexion bei 46° (Faktor ≈ cos 2θ)
+   gibt der Projektor P(k_d′) richtig wieder.
 
 ## K7: Randzone der Maske (B1)
 

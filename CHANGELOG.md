@@ -111,3 +111,5 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionen 
   Gauß-Punkten statt Mittelpunkt (F1, #53), auch vorwärts. K19: Schicht und Bragg-Gitter gegen die
   exakte Lösung auf 5·10⁻⁴ bzw. 1,3·10⁻³. Behoben: `Bidirectional2D` ignorierte δn (Lücke aus B7).
   Sollwertdateien für δn neu erzeugt.
+- K19 Punkt 6: Lamellengitter in Reflexion gegen RCWA (Ordnungen 0 und ±1, s und p) auf
+  0,3–0,5·δn; `tests/rcwa_reference.py` liefert dazu die Reflexion (`lamellar_reflection`).
